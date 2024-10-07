@@ -1,5 +1,3 @@
-# GuidingPath
-
 # Introduction
 
 # Installation
@@ -22,3 +20,4 @@ fastapi dev main.py
 ```
 Server will start at http://127.0.0.1:8000
 API documentation will be available at http://127.0.0.1:docs
+
