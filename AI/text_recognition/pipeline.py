@@ -105,7 +105,7 @@ class TextRecognitionPipeline:
 
 def main():
     ocr = TextRecognitionPipeline(mode='ocr')
-    print(ocr.recognize_text("/home/xuananle/Pictures/Screenshots/Screenshot from 2024-10-09 08-36-44.png").text)
+    print(ocr.recognize_text("/home/automl/Picture/Screenshot from 2024-08-28 15-18-59.png", language="vie").text)
 
 if __name__ == "__main__":
     main()
