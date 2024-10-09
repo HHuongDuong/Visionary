@@ -1,54 +1,26 @@
 package com.example.visionmate.screens
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.Preview
-import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.PreviewView
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
-import androidx.compose.material3.Text
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.example.visionmate.ui.components.CameraPreview
+import android.annotation.SuppressLint
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.tooling.preview.Preview
+import com.example.visionmate.ui.components.CameraPermissionHandler
+import com.example.visionmate.ui.components.VMBottomBar
+import com.example.visionmate.ui.components.VMTopBar
 
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun Home() {
-    val context = LocalContext.current
-    var hasCameraPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-        )
+    Scaffold(
+        topBar = { VMTopBar() },
+        bottomBar = { VMBottomBar() }
+    ) {
+        CameraPermissionHandler()
     }
+}
 
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        hasCameraPermission = isGranted
-        if (!isGranted) {
-            Toast.makeText(context, "Camera permission denied", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    LaunchedEffect(key1 = hasCameraPermission) {
-        if (!hasCameraPermission) {
-            launcher.launch(Manifest.permission.CAMERA)
-        }
-    }
-
-    if (hasCameraPermission) {
-        CameraPreview()
-    } else {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Text("Camera permission is required to use this feature.")
-        }
-    }
+@Preview
+@Composable
+fun HomePreview() {
+    Home()
 }
