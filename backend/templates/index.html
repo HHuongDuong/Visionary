@@ -1,0 +1,29 @@
+<html>
+  <head>
+    <title>Video Streaming Demonstration</title>
+    <script>
+      let streaming = false;
+
+      function toggleStream() {
+        const imgElement = document.getElementById('video_stream');
+        const toggleButton = document.getElementById('toggle_button');
+        
+        if (streaming) {
+          imgElement.src = "";
+          toggleButton.textContent = "Start Streaming";
+        } else {
+          imgElement.src = "{{ url_for('video_feed') }}";
+          toggleButton.textContent = "Stop Streaming";
+        }
+        
+        streaming = !streaming;
+      }
+    </script>
+  </head>
+  <body>
+    <h1>Video Streaming Demonstration</h1>
+    <button id="toggle_button" onclick="toggleStream()">Start Streaming</button>
+    <br><br>
+    <img id="video_stream" src="">
+  </body>
+</html>
