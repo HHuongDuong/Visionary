@@ -1,15 +1,13 @@
 package com.example.visionmate.repository
 
 import android.graphics.Bitmap
+import android.util.Log
 import androidx.camera.core.ImageProxy
 import com.example.visionmate.api.FaceDetectionResponse
 import com.example.visionmate.api.TextRecognitionResponse
 import com.example.visionmate.api.VisionApi
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -20,64 +18,76 @@ import retrofit2.Response
 
 class VisionRepository {
 
-    private val _faceDetectionResult = MutableStateFlow<List<String>>(emptyList())
-    val faceDetectionResult: StateFlow<List<String>> = _faceDetectionResult.asStateFlow()
-
-    private val _textRecognitionResult = MutableStateFlow<String>("")
-    val textRecognitionResult: StateFlow<String> = _textRecognitionResult.asStateFlow()
-
     private val visionApi: VisionApi
 
     init {
         val retrofit = Retrofit.Builder()
-            .baseUrl("http://your-fastapi-backend-url/")
+            .baseUrl("https://httpbin.org/")
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
         visionApi = retrofit.create(VisionApi::class.java)
     }
 
-    fun analyzeImage(imageProxy: ImageProxy) {
+    fun detectFaces(imageProxy: ImageProxy, callback: (List<String>) -> Unit) {
         val bitmap = imageProxy.toBitmap()
-        val imageRequestBody = bitmap.toRequestBody()
+        val imagePart = bitmap.toMultipartBodyPart()
 
-        // Send image to FastAPI for face detection
-        visionApi.detectFaces(imageRequestBody).enqueue(object : Callback<FaceDetectionResponse> {
+        visionApi.detectFaces(imagePart).enqueue(object : Callback<FaceDetectionResponse> {
             override fun onResponse(call: Call<FaceDetectionResponse>, response: Response<FaceDetectionResponse>) {
                 if (response.isSuccessful) {
-                    _faceDetectionResult.update { response.body()?.faces ?: emptyList() }
+                    val faces = response.body()?.faces ?: emptyList()
+                    Log.d("VisionRepository", "Face detection successful: $faces")
+                    callback(faces)
                 } else {
-                    _faceDetectionResult.update { listOf("Face detection failed: ${response.message()}") }
+                    val errorMessage = "Face detection failed: ${response.message()}"
+                    Log.d("VisionRepository", errorMessage)
+                    callback(listOf(errorMessage))
                 }
             }
 
             override fun onFailure(call: Call<FaceDetectionResponse>, t: Throwable) {
-                _faceDetectionResult.update { listOf("Face detection failed: ${t.message}") }
-            }
-        })
-
-        // Send image to FastAPI for text recognition
-        visionApi.recognizeText(imageRequestBody).enqueue(object : Callback<TextRecognitionResponse> {
-            override fun onResponse(call: Call<TextRecognitionResponse>, response: Response<TextRecognitionResponse>) {
-                if (response.isSuccessful) {
-                    _textRecognitionResult.update { response.body()?.text ?: "" }
-                } else {
-                    _textRecognitionResult.update { "Text recognition failed: ${response.message()}" }
-                }
-            }
-
-            override fun onFailure(call: Call<TextRecognitionResponse>, t: Throwable) {
-                _textRecognitionResult.update { "Text recognition failed: ${t.message}" }
+                val errorMessage = "Face detection failed: ${t.message}"
+                Log.d("VisionRepository", errorMessage)
+                callback(listOf(errorMessage))
             }
         })
 
         imageProxy.close()
     }
 
-    private fun Bitmap.toRequestBody(): RequestBody {
+    fun recognizeText(imageProxy: ImageProxy, callback: (String) -> Unit) {
+        val bitmap = imageProxy.toBitmap()
+        val imagePart = bitmap.toMultipartBodyPart()
+
+        visionApi.recognizeText(imagePart).enqueue(object : Callback<TextRecognitionResponse> {
+            override fun onResponse(call: Call<TextRecognitionResponse>, response: Response<TextRecognitionResponse>) {
+                if (response.isSuccessful) {
+                    val text = response.body()?.text ?: ""
+                    Log.d("VisionRepository", "Text recognition successful: $text")
+                    callback(text)
+                } else {
+                    val errorMessage = "Text recognition failed: ${response.message()}"
+                    Log.d("VisionRepository", errorMessage)
+                    callback(errorMessage)
+                }
+            }
+
+            override fun onFailure(call: Call<TextRecognitionResponse>, t: Throwable) {
+                val errorMessage = "Text recognition failed: ${t.message}"
+                Log.d("VisionRepository", errorMessage)
+                callback(errorMessage)
+            }
+        })
+
+        imageProxy.close()
+    }
+
+    private fun Bitmap.toMultipartBodyPart(): MultipartBody.Part {
         val byteArrayOutputStream = ByteArrayOutputStream()
         this.compress(Bitmap.CompressFormat.JPEG, 100, byteArrayOutputStream)
         val byteArray = byteArrayOutputStream.toByteArray()
-        return RequestBody.Companion.create("image/jpeg".toMediaTypeOrNull(), byteArray)
+        val requestBody = RequestBody.create("image/jpeg".toMediaTypeOrNull(), byteArray)
+        return MultipartBody.Part.createFormData("image", "image.jpg", requestBody)
     }
 }

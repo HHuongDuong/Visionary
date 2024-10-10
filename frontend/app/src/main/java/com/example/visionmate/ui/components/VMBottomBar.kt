@@ -8,9 +8,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EmojiObjects
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.RemoveRedEye
 import androidx.compose.material.icons.filled.Sick
+import androidx.compose.material.icons.filled.TextFormat
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.BottomAppBarDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -21,10 +21,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.visionmate.ui.theme.VisionMateTheme
 
 @Composable
-fun VMBottomBar() {
+fun VMBottomBar(
+    onDetectFacesClick: () -> Unit,
+    onRecognizeTextClick: () -> Unit,
+    onOtherActionClick: () -> Unit
+) {
     BottomAppBar {
         Box(
             modifier = Modifier.padding(8.dp).fillMaxWidth(),
@@ -34,23 +37,23 @@ fun VMBottomBar() {
                 horizontalArrangement = Arrangement.Center
             ) {
                 FloatingActionButton(
-                    onClick = { /* do something */ },
+                    onClick = onDetectFacesClick,
                     containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
                     elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation(),
                     modifier = Modifier.padding(8.dp)
                 ) {
-                    Icon(Icons.Filled.Mic, "Localized description")
+                    Icon(Icons.Filled.RemoveRedEye, "Detect Faces")
                 }
                 FloatingActionButton(
-                    onClick = { /* do something */ },
+                    onClick = onRecognizeTextClick,
                     containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
                     elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation(),
                     modifier = Modifier.padding(8.dp)
                 ) {
-                    Icon(Icons.Filled.RemoveRedEye, "Localized description")
+                    Icon(Icons.Filled.TextFormat, "Recognize Text")
                 }
                 FloatingActionButton(
-                    onClick = { /* do something */ },
+                    onClick = onOtherActionClick,
                     containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
                     elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation(),
                     modifier = Modifier.padding(8.dp)
@@ -58,7 +61,7 @@ fun VMBottomBar() {
                     Icon(Icons.Filled.Image, "Localized description")
                 }
                 FloatingActionButton(
-                    onClick = { /* do something */ },
+                    onClick = onOtherActionClick,
                     containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
                     elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation(),
                     modifier = Modifier.padding(8.dp)
@@ -66,7 +69,7 @@ fun VMBottomBar() {
                     Icon(Icons.Filled.EmojiObjects, "Localized description")
                 }
                 FloatingActionButton(
-                    onClick = { /* do something */ },
+                    onClick = onOtherActionClick,
                     containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
                     elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation(),
                     modifier = Modifier.padding(8.dp)
@@ -81,7 +84,9 @@ fun VMBottomBar() {
 @Preview
 @Composable
 fun VMBottomBarPreview() {
-    VisionMateTheme {
-        VMBottomBar()
-    }
+    VMBottomBar(
+        onDetectFacesClick = { },
+        onRecognizeTextClick = { },
+        onOtherActionClick = { }
+    )
 }

@@ -3,15 +3,17 @@ package com.example.visionmate
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.core.view.WindowCompat
-import dagger.hilt.android.HiltAndroidApp
+import androidx.navigation.compose.rememberNavController
+import com.example.visionmate.navigation.NavGraph
+import dagger.hilt.android.AndroidEntryPoint
 
-@HiltAndroidApp
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            VisionMateApp()
+            val navController = rememberNavController()
+            NavGraph(navController = navController)
         }
     }
 }
