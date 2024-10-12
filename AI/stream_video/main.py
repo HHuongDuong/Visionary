@@ -8,7 +8,6 @@ import base64
 from playsound import playsound
 from io import BytesIO
 from dotenv import load_dotenv
-
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
@@ -67,7 +66,9 @@ def play_audio(text):
         input=text,
     )
 
-    response.stream_to_file("audio/output.mp3")
+    with open("audio/output.mp3", mode="wb") as f:
+        for data in response.with_streaming_response().iter_bytes():
+            f.write(data)
     playsound("audio/output.mp3")
 
 

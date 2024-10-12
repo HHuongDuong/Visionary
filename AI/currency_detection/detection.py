@@ -14,7 +14,6 @@ img = imread_from_url(img_url)
 yolov8_detector(img)
 
 combined_img = yolov8_detector.draw_detections(img)
-cv2.namedWindow("Detected Objects", cv2.WINDOW_NORMAL)
-cv2.imshow("Detected Objects", combined_img)
+cv2.imwrite("Detected Objects.jpg", combined_img)
 cv2.waitKey(0)
 cv2.destroyAllWindows()

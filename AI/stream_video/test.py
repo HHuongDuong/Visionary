@@ -1,6 +1,8 @@
 import os
 import base64
+from tracemalloc import start
 from openai import OpenAI
+import time
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -26,7 +28,14 @@ def frame_description(base64_image, user_prompt):
         },
     ]
 
+import time
+
+import time
+
 def analyze_image(base64_image, user_prompt):
+    start_time = time.time()
+    
+    # Send the request
     response = client.chat.completions.create(
         model="gpt-4o-mini", 
         messages=[
@@ -43,14 +52,25 @@ def analyze_image(base64_image, user_prompt):
     )
 
     response_text = ""
+    first_chunk_time = None
+
     for chunk in response:
         if chunk.choices[0].delta.content:  
+            if first_chunk_time is None:
+                first_chunk_time = time.time()
+                time_to_first_chunk = first_chunk_time - start_time
+                print(f"\nTime to first chunk: {time_to_first_chunk:.4f} seconds")
+
             chunk_text = chunk.choices[0].delta.content
             response_text += chunk_text  
             print(chunk_text, end='', flush=True)  
     
+    end_time = time.time()
+    
+    elapsed_time = end_time - start_time
+    print(f"\nTotal execution time: {elapsed_time:.4f} seconds")
+    
     return response_text.strip()
-
 
 
 def main():
@@ -60,6 +80,7 @@ def main():
     
     base64_image = encode_image(image_path)
     
+
     analysis = analyze_image(base64_image, user_prompt)
 
 if __name__ == "__main__":
