@@ -6,7 +6,8 @@ import os
 from dotenv import load_dotenv
 import json
 
-load_dotenv()
+load_dotenv("../.env")
+
 
 MONGODB_URI = os.getenv("MONGODB_URI")
 DB_NAME = os.getenv("DB_NAME")
