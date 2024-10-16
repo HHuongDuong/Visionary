@@ -1,13 +1,14 @@
 from MeloTTS.melo.api import TTS
 import torch
 import threading
-from typing import Dict, Optional, Union
+from typing import Dict, Literal, Optional, Union
 import time
 import logging
 from concurrent.futures import ThreadPoolExecutor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+SupportedModesType = Literal['deepgram', 'melo']
 
 class MeloTTSWrapper:
     def __init__(self, language: str = 'EN', device: str = 'auto'):
