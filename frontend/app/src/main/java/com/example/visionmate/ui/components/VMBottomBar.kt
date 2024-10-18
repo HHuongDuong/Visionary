@@ -52,38 +52,6 @@ fun VMBottomBar(
                 ) {
                     Icon(Icons.Filled.TextFormat, "Text Recognition")
                 }
-//                FloatingActionButton(
-//                    onClick = TODO(),
-//                    containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
-//                    elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation(),
-//                    modifier = Modifier.padding(8.dp)
-//                ) {
-//                    Icon(Icons.Filled.QuestionMark, "")
-//                }
-//                FloatingActionButton(
-//                    onClick = TODO(),
-//                    containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
-//                    elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation(),
-//                    modifier = Modifier.padding(8.dp)
-//                ) {
-//                    Icon(Icons.Filled.QuestionMark, "")
-//                }
-//                FloatingActionButton(
-//                    onClick = TODO(),
-//                    containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
-//                    elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation(),
-//                    modifier = Modifier.padding(8.dp)
-//                ) {
-//                    Icon(Icons.Filled.QuestionMark, "")
-//                }
-//                FloatingActionButton(
-//                    onClick = TODO(),
-//                    containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
-//                    elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation(),
-//                    modifier = Modifier.padding(8.dp)
-//                ) {
-//                    Icon(Icons.Filled.QuestionMark, "")
-//                }
             }
         }
     }

@@ -23,6 +23,7 @@ import android.util.Log
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.ByteArrayOutputStream
 
 @Composable
@@ -96,18 +97,15 @@ fun CameraPreview(
 }
 
 suspend fun captureFramesAndSendToServer() {
-    // Capture frames (this is a placeholder, implement your frame capture logic)
     val frames: List<Bitmap> = captureFrames()
 
-    // Convert frames to ByteArray
     val byteArrayOutputStream = ByteArrayOutputStream()
     frames.forEach { frame ->
         frame.compress(Bitmap.CompressFormat.JPEG, 100, byteArrayOutputStream)
     }
     val byteArray = byteArrayOutputStream.toByteArray()
 
-    // Create MultipartBody.Part
-    val requestBody = RequestBody.create("image/jpeg".toMediaTypeOrNull(), byteArray)
+    val requestBody = byteArray.toRequestBody("image/jpeg".toMediaTypeOrNull(), 0)
     val multipartBody = MultipartBody.Part.createFormData("frames", "frames.jpg", requestBody)
 
     // Send frames to server
@@ -125,8 +123,6 @@ suspend fun captureFramesAndSendToServer() {
     }
 }
 
-// Placeholder function to capture frames
 fun captureFrames(): List<Bitmap> {
-    // Implement your frame capture logic here
     return listOf()
 }

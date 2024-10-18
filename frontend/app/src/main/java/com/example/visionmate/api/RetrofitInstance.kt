@@ -1,4 +1,5 @@
-import com.example.visionmate.api.VisionApi
+package com.example.visionmate.api
+
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
