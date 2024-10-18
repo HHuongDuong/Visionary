@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EmojiObjects
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material.icons.filled.RemoveRedEye
 import androidx.compose.material.icons.filled.Sick
 import androidx.compose.material.icons.filled.TextFormat
@@ -17,17 +18,21 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
 @Composable
 fun VMBottomBar(
-    onDetectFacesClick: () -> Unit,
     onRecognizeTextClick: () -> Unit,
-    onOtherActionClick: () -> Unit
 ) {
+
+    val selectedButton = remember { mutableStateOf("Text Recognition") }
+
     BottomAppBar {
         Box(
             modifier = Modifier.padding(8.dp).fillMaxWidth(),
@@ -37,47 +42,59 @@ fun VMBottomBar(
                 horizontalArrangement = Arrangement.Center
             ) {
                 FloatingActionButton(
-                    onClick = onDetectFacesClick,
-                    containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
+                    onClick = {
+                        selectedButton.value = "Text Recognition"
+                        onRecognizeTextClick()
+                    },
+                    containerColor = getButtonColor(selectedButton.value, "Text Recognition"),
                     elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation(),
                     modifier = Modifier.padding(8.dp)
                 ) {
-                    Icon(Icons.Filled.RemoveRedEye, "Detect Faces")
+                    Icon(Icons.Filled.TextFormat, "Text Recognition")
                 }
-                FloatingActionButton(
-                    onClick = onRecognizeTextClick,
-                    containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
-                    elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation(),
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Icon(Icons.Filled.TextFormat, "Recognize Text")
-                }
-                FloatingActionButton(
-                    onClick = onOtherActionClick,
-                    containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
-                    elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation(),
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Icon(Icons.Filled.Image, "Localized description")
-                }
-                FloatingActionButton(
-                    onClick = onOtherActionClick,
-                    containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
-                    elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation(),
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Icon(Icons.Filled.EmojiObjects, "Localized description")
-                }
-                FloatingActionButton(
-                    onClick = onOtherActionClick,
-                    containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
-                    elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation(),
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Icon(Icons.Filled.Sick, "Localized description")
-                }
+//                FloatingActionButton(
+//                    onClick = TODO(),
+//                    containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
+//                    elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation(),
+//                    modifier = Modifier.padding(8.dp)
+//                ) {
+//                    Icon(Icons.Filled.QuestionMark, "")
+//                }
+//                FloatingActionButton(
+//                    onClick = TODO(),
+//                    containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
+//                    elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation(),
+//                    modifier = Modifier.padding(8.dp)
+//                ) {
+//                    Icon(Icons.Filled.QuestionMark, "")
+//                }
+//                FloatingActionButton(
+//                    onClick = TODO(),
+//                    containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
+//                    elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation(),
+//                    modifier = Modifier.padding(8.dp)
+//                ) {
+//                    Icon(Icons.Filled.QuestionMark, "")
+//                }
+//                FloatingActionButton(
+//                    onClick = TODO(),
+//                    containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
+//                    elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation(),
+//                    modifier = Modifier.padding(8.dp)
+//                ) {
+//                    Icon(Icons.Filled.QuestionMark, "")
+//                }
             }
         }
+    }
+}
+
+@Composable
+fun getButtonColor(selectedButton: String, buttonLabel: String): Color {
+    return if (selectedButton == buttonLabel) {
+        BottomAppBarDefaults.bottomAppBarFabColor
+    } else {
+        BottomAppBarDefaults.bottomAppBarFabColor.copy(alpha = 0.5f)
     }
 }
 
@@ -85,8 +102,6 @@ fun VMBottomBar(
 @Composable
 fun VMBottomBarPreview() {
     VMBottomBar(
-        onDetectFacesClick = { },
         onRecognizeTextClick = { },
-        onOtherActionClick = { }
     )
 }

@@ -17,11 +17,9 @@ fun NavGraph(navController: NavHostController) {
                 viewModel = viewModel,
             )
         }
-        // Add other composable destinations here
     }
 }
 
 sealed class Screen(val route: String) {
     object Home : Screen("home")
-    // Add other screens here
 }
