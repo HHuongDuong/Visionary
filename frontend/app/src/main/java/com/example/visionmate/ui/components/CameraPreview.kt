@@ -1,128 +1,118 @@
-import android.graphics.Bitmap
+package com.example.visionmate.ui.components
+
+import android.Manifest
+import android.content.pm.PackageManager
+import android.util.Log
+import android.widget.Toast
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import android.util.Log
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.RequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
-import java.io.ByteArrayOutputStream
+import androidx.concurrent.futures.await
 
 @Composable
 fun CameraPreview(
-    onCapture: (Bitmap) -> Unit
+    isRecording: Boolean,
+    onRecordButtonClick: () -> Unit,
+    onImageCaptureCreated: (ImageCapture) -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
-    var isRecording by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
+    val previewView = remember { PreviewView(context) }
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        )
+    }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        AndroidView(
-            factory = { ctx ->
-                val previewView = PreviewView(ctx)
-                val cameraProvider = cameraProviderFuture.get()
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        hasCameraPermission = isGranted
+        if (!isGranted) {
+            Toast.makeText(context, "Camera permission denied", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    LaunchedEffect(hasCameraPermission) {
+        if (hasCameraPermission) {
+            try {
+                val cameraProvider = cameraProviderFuture.await()
                 val preview = Preview.Builder().build().also {
                     it.setSurfaceProvider(previewView.surfaceProvider)
                 }
+
                 val imageCapture = ImageCapture.Builder().build()
+                onImageCaptureCreated(imageCapture)
                 val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
+                cameraProvider.unbindAll()
                 cameraProvider.bindToLifecycle(
-                    lifecycleOwner,
-                    cameraSelector,
-                    preview,
-                    imageCapture
+                    lifecycleOwner, cameraSelector, preview, imageCapture
                 )
+                Log.d("CameraPreview", "Camera use cases bound successfully")
+            } catch (exc: Exception) {
+                Log.e("CameraPreview", "Failed to bind camera use cases", exc)
+                Toast.makeText(context, "Failed to bind camera use cases", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
-                previewView
-            },
-            modifier = Modifier.fillMaxSize()
-        )
-
-        IconButton(
-            onClick = {
-                isRecording = !isRecording
-                if (isRecording) {
-                    coroutineScope.launch {
-                        captureFramesAndSendToServer()
-                    }
-                }
-            },
-            modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
-        ) {
-            IconButton(
-                onClick = {
-                    isRecording = !isRecording
-                    if (isRecording) {
-                        coroutineScope.launch {
-                            captureFramesAndSendToServer()
-                        }
-                    }
-                },
+    if (hasCameraPermission) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            AndroidView(
+                factory = { previewView },
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(4.dp)
-                    .size(64.dp)
-                    .background(MaterialTheme.colorScheme.primary, shape = CircleShape)
+                    .fillMaxSize()
+                    .padding(bottom = 16.dp),
+                contentAlignment = Alignment.BottomCenter
             ) {
-                Icon(
-                    imageVector = if (isRecording) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (isRecording) "Pause" else "Record",
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(32.dp)
-                )
+                IconButton(
+                    onClick = onRecordButtonClick,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                ) {
+                    Icon(
+                        imageVector = if (isRecording) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (isRecording) "Pause" else "Record",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
             }
         }
-    }
-}
-
-suspend fun captureFramesAndSendToServer() {
-    val frames: List<Bitmap> = captureFrames()
-
-    val byteArrayOutputStream = ByteArrayOutputStream()
-    frames.forEach { frame ->
-        frame.compress(Bitmap.CompressFormat.JPEG, 100, byteArrayOutputStream)
-    }
-    val byteArray = byteArrayOutputStream.toByteArray()
-
-    val requestBody = byteArray.toRequestBody("image/jpeg".toMediaTypeOrNull(), 0)
-    val multipartBody = MultipartBody.Part.createFormData("frames", "frames.jpg", requestBody)
-
-    // Send frames to server
-    withContext(Dispatchers.IO) {
-        try {
-            val response = RetrofitInstance.api.sendFrames(multipartBody, "feature_name").execute()
-            if (response.isSuccessful) {
-                Log.d("VisionMate", "Frames sent successfully")
-            } else {
-                Log.e("VisionMate", "Failed to send frames: ${response.errorBody()?.string()}")
-            }
-        } catch (e: Exception) {
-            Log.e("VisionMate", "Error sending frames", e)
+    } else {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Text("Camera permission is required to use this feature.")
         }
     }
-}
-
-fun captureFrames(): List<Bitmap> {
-    return listOf()
 }

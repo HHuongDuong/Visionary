@@ -13,13 +13,7 @@ fun NavGraph(navController: NavHostController) {
     NavHost(navController = navController, startDestination = "home") {
         composable("home") {
             val viewModel: VisionViewModel = hiltViewModel()
-            Home(
-                viewModel = viewModel,
-            )
+            Home(viewModel = viewModel)
         }
     }
-}
-
-sealed class Screen(val route: String) {
-    object Home : Screen("home")
 }
