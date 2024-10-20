@@ -1,19 +1,26 @@
 package com.example.visionmate.di
 
-import com.example.visionmate.repository.VisionRepository
+import com.example.visionmate.api.VisionApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.components.ViewModelComponent
-import dagger.hilt.android.scopes.ViewModelScoped
+import dagger.hilt.components.SingletonComponent
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import javax.inject.Singleton
+
+const val BASE_URL = "https://httpbin.org/"
 
 @Module
-@InstallIn(ViewModelComponent::class)
+@InstallIn(SingletonComponent::class)
 object VisionModule {
-
     @Provides
-    @ViewModelScoped
-    fun provideVisionRepository(): VisionRepository {
-        return VisionRepository()
+    @Singleton
+    fun provideVisionApi(): VisionApi {
+        return Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(VisionApi::class.java)
     }
 }
