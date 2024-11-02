@@ -49,7 +49,7 @@ class TextRecognitionPipeline:
         self.model.to(self.device)
     
     def recognize_text(self, 
-                      image_source: Union[str, PaF, Image.Image, np.ndarray],
+                      image_source: Union[str, Path, Image.Image, np.ndarray],
                       language: SupportedLanguages = "vie") -> RecognitionResult:
         try:
             image = self._prepare_image(image_source)
