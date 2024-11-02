@@ -81,7 +81,7 @@ def detect_and_recognize_face(image_path=None):
             ret, frame = cap.read()
             if not ret:
                 break
-            
+
             process_frame(frame, collection, current_identity)
             
             cv2.imshow("Camera", frame)

@@ -66,7 +66,7 @@ class BarcodeProcessor:
 
 def main():
     processor = BarcodeProcessor()
-    image_path = '/home/automl/Xuanan/HMI/VisionMate/AI/image copy 2.png'
+    image_path = '/home/xuananle/Documents/Learn/HMI/VisionMate/AI/app/product_recognition/img.png'
     
     try:
         result = processor.process_image(image_path)
