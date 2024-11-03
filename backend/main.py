@@ -1,55 +1,67 @@
-from fastapi.middleware.cors import CORSMiddleware
-
-from fastapi import FastAPI, File, UploadFile
-
+import sys
+from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.responses import FileResponse
+from tempfile import NamedTemporaryFile
+import uvicorn
+from fpdf import FPDF
+from PIL import Image
 import os
-from AI.text_recognition.pipeline import TextRecognitionPipeline
-
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
+from AI.app.text_recognition.provider.ocr.ocr import OcrRecognition
 app = FastAPI()
 
-# Init Models
-ocr = TextRecognitionPipeline(mode='ocr')
+ocr_recognition = OcrRecognition()
 
+@app.post("/document_recognition")
+async def document_recognition(file: UploadFile = File(...)):
+    # Validate file type
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Invalid file type. Please upload an image.")
 
-
-origins = [
-    "http://*",
-    "https://*",
-    "ws://*"
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
-
-@app.get("/")
-async def root():
-    return "Hello world"
-
-# Nhận diện văn bản: Ví dụ, khi cần đọc một tài liệu, biển báo trên đường hoặc nhãn hiệu 
-# sản phẩm trong siêu thị, Vision Mate sẽ quét văn bản và chuyển đổi thành âm thanh để người dùng có thể nghe.
-
-@app.post("/recognize_text_from_image")
-async def upload(file: UploadFile = File(...)):
+    # Process image with OCR
     try:
-        contents = file.file.read()
-        if file.content_type not in ["image/png", "image/jpeg", "image/jpg"]:
-            return {
-                "message" : "Not the right file type"
-            }   
-        with open("/tmp/" + file.filename, 'wb') as f:
-            f.write(contents)
-        
-        text = ocr.recognize_text("/tmp/" + file.filename, language="eng")
-        return {
-            "result" : text     
-        }
-    except Exception:
-        return {"message": "There was an error uploading the file"}
-    finally:
-        os.remove("/tmp/" + file.filename)
+        image = Image.open(file.file)
+        result = ocr_recognition.recognize_text(image, language="vie")
+        if not result.text:
+            raise HTTPException(status_code=400, detail="Text not recognized in the image.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"OCR processing failed: {str(e)}")
+
+    # Convert text to PDF
+    pdf_file = NamedTemporaryFile(delete=False, suffix=".pdf")
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.multi_cell(0, 10, result.text)
+    pdf.output(pdf_file.name)
+    
+    # Generate speech from text
+    audio_file = NamedTemporaryFile(delete=False, suffix=".mp3")
+    try:
+        # Assuming you have TTS library (e.g., gTTS) for converting text to speech
+        from gtts import gTTS
+        tts = gTTS(result.text, lang="vi")
+        tts.save(audio_file.name)
+    except Exception as e:
+        pdf_file.close()
+        os.unlink(pdf_file.name)
+        raise HTTPException(status_code=500, detail=f"Text-to-speech conversion failed: {str(e)}")
+
+    # Prepare response
+    response = {
+        "pdf_path": pdf_file.name,
+        "audio_path": audio_file.name,
+        "confidence": result.confidence
+    }
+    
+    return response
+
+@app.get("/download_pdf")
+async def download_pdf(pdf_path: str):
+    return FileResponse(pdf_path, media_type="application/pdf", filename="document.pdf")
+
+@app.get("/download_audio")
+async def download_audio(audio_path: str):
+    return FileResponse(audio_path, media_type="audio/mpeg", filename="document.mp3")
+
 

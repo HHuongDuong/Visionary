@@ -2,12 +2,15 @@ from typing import Union, Optional
 from pathlib import Path
 import logging
 from dataclasses import dataclass
-
+from typing import Literal
 import numpy as np
 import pytesseract
 from PIL import Image
 
-from app.text_recognition.provider import SupportedLanguages
+SupportedModesType = Literal["ocr", "easyocr", "trocr", "gpt4", "claude"]
+SupportedLanguages = Literal["eng", "fra", "deu", "spa", "vie"]
+
+SupportedModes = ("ocr", "easyocr", "trocr", "gpt4")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

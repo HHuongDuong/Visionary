@@ -115,7 +115,7 @@ class OpenAIProvider:
 
 def main():
     import os
-    from app.config import config
+    from config import config
 
     logging.basicConfig(level=logging.INFO)
 
