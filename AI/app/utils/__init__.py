@@ -20,11 +20,5 @@ def create_pdf(text: str, output_path: str):
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.set_font("Arial", size=12)
-    
-    # Add text to PDF
-    for line in text.splitlines():
-        pdf.cell(200, 10, txt=line, ln=True, align='L')
-    
-    # Save the PDF
+    pdf.multi_cell(0, 10, text)
     pdf.output(output_path)
-

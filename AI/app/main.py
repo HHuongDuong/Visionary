@@ -1,5 +1,3 @@
-from logging import exception
-from unittest import result
 import cv2
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -11,6 +9,7 @@ import sys
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import FileResponse
 from tempfile import NamedTemporaryFile
+from text_to_speech.provider.Deepgram.deepgram import text_to_speech as deepgram_text_to_speech
 from product_recognition.pipeline import BarcodeProcessor
 import time
 from image_captioning.provider.gpt4.gpt4 import OpenAIProvider
@@ -38,9 +37,16 @@ async def document_recognition(file: UploadFile = File(...)):
             temp.write(file.file.read())
             temp.close()
             result = ocr.recognize_text(temp.name, language="eng").text
-            utils.create_pdf(result, "output.pdf")
-            return FileResponse("output.pdf")
-
+            audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
+            pdf_path = NamedTemporaryFile(delete=False, suffix=".pdf").name
+            utils.create_pdf(text = result, output_path = pdf_path)
+            deepgram_text_to_speech(api_key= config.DEEPGRAM_API_KEY, 
+                                    text = result , output_path=audio_path)
+            return JSONResponse(content={
+                "text": result,
+                "audio_path": audio_path,
+                "pdf_path": pdf_path
+            })
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -56,8 +62,12 @@ async def currency_detection(file: UploadFile = File(...)):
             img = cv2.imread(temp.name)
             currency_detector(img)
             total_money = currency_detector.get_total_money()
+            audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
+            deepgram_text_to_speech(api_key= config.DEEPGRAM_API_KEY, 
+                                    text = f"Total money is {total_money}" , output_path=audio_path)
             return JSONResponse(content={
-                "total_money": total_money
+                "total_money": total_money,
+                "audio_path": audio_path
             })
     except Exception as e:
         print(e)
@@ -74,8 +84,12 @@ async def image_captioning(file: UploadFile = File(...)):
             if not base64_image:
                 raise HTTPException(status_code=500, detail="Failed to encode image")
             description = gpt4_captioning.frame_description_stream(base64_image)
+            audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
+            deepgram_text_to_speech(api_key= config.DEEPGRAM_API_KEY, 
+                                    text = description , output_path=audio_path)
             return JSONResponse(content={
-                "description": description
+                "description": description,
+                "audio_path": audio_path
             })
     except Exception as e:
         print(e)
@@ -89,9 +103,23 @@ async def product_recognition(file: UploadFile = File(...)):
             temp.write(file.file.read())
             temp.close()
             result = barcode_processor.process_image(temp.name)
-            return JSONResponse(content=result)
+            audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
+            deepgram_text_to_speech(api_key= config.DEEPGRAM_API_KEY, 
+                                    text = result , output_path=audio_path)
+            
+            print(result)
+            return JSONResponse(content= {
+                "audio_path": audio_path
+            })
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail="Internal server error")
-    
 
+@app.get("/download_pdf")
+async def download_pdf(pdf_path: str):
+    return FileResponse(pdf_path, media_type="application/pdf", filename="document.pdf")
+
+
+@app.get("/download_audio")
+async def download_audio(audio_path: str):
+    return FileResponse(audio_path, media_type="audio/mpeg", filename="document.mp3")
