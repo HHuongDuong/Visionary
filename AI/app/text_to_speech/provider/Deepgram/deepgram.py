@@ -167,5 +167,6 @@ def text_to_speech(api_key=None, text=None, output_path = None):
                         f.write(chunk)
 
 
-
+async def text_to_speech_async(api_key=None, text=None, output_path = None):
+    await asyncio.to_thread(text_to_speech, api_key, text, output_path)
     
