@@ -5,7 +5,6 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 import utils
 from currency_detection.yolov8.YOLOv8 import YOLOv8
-from distance_estimate.yolov8.YOLOv8 import YOLOv8 as DistanceEstimator
 from config import config
 from text_recognition.provider.ocr.ocr import OcrRecognition
 import sys
@@ -23,7 +22,6 @@ currency_detector = YOLOv8(currency_detection_model_path, conf_thres=0.2, iou_th
 gpt4_captioning = OpenAIProvider(config.OPEN_API_KEY)
 barcode_processor = BarcodeProcessor()
 distance_estimation_model_path = "./distance_estimate/models/yolov8m.onnx"
-distance_estimator = DistanceEstimator(distance_estimation_model_path, conf_thres=0.3, iou_thres=0.5)
 print(f"All Models loaded in {time.time() - start:.2f} seconds", file=sys.stderr)
 
 
@@ -97,18 +95,3 @@ async def product_recognition(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail="Internal server error")
     
 
-@app.post("/distance_estimation")
-async def distance_estimation(file: UploadFile = File(...)):
-    try:
-        with NamedTemporaryFile(delete=False) as temp:
-            temp.write(file.file.read())
-            temp.close()
-            img = cv2.imread(temp.name)
-            distance_estimator(img)
-            combined_img = distance_estimator.draw_detections(img)
-            cv2.imwrite("output.jpg", combined_img)
-            return FileResponse("output.jpg")
-    except Exception as e:
-        print(e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-    
