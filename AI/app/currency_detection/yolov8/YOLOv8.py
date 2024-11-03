@@ -3,7 +3,7 @@ from imread_from_url import imread_from_url
 import cv2
 import numpy as np
 import onnxruntime
-from app.currency_detection.yolov8.utils import draw_detections, xywh2xyxy, multiclass_nms, class_names
+from currency_detection.yolov8.utils import draw_detections, xywh2xyxy, multiclass_nms, class_names
 
 class YOLOv8:
     def __init__(self, path, conf_thres=0.7, iou_thres=0.5):
