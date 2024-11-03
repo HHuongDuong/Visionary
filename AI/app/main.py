@@ -9,10 +9,12 @@ import sys
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import FileResponse
 from tempfile import NamedTemporaryFile
+from text_to_speech.provider.Deepgram.deepgram import text_to_speech_async as deepgram_text_to_speech_async
 from text_to_speech.provider.Deepgram.deepgram import text_to_speech as deepgram_text_to_speech
 from product_recognition.pipeline import BarcodeProcessor
 import time
 from image_captioning.provider.gpt4.gpt4 import OpenAIProvider
+import asyncio
 
 start = time.time()
 ocr = OcrRecognition()
@@ -39,9 +41,11 @@ async def document_recognition(file: UploadFile = File(...)):
             result = ocr.recognize_text(temp.name, language="eng").text
             audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
             pdf_path = NamedTemporaryFile(delete=False, suffix=".pdf").name
-            utils.create_pdf(text = result, output_path = pdf_path)
-            deepgram_text_to_speech(api_key= config.DEEPGRAM_API_KEY, 
-                                    text = result , output_path=audio_path)
+            asyncio.gather(
+                deepgram_text_to_speech_async(api_key= config.DEEPGRAM_API_KEY, 
+                                        text = result , output_path=audio_path),
+                utils.create_pdf_async(result, pdf_path)
+            )
             return JSONResponse(content={
                 "text": result,
                 "audio_path": audio_path,

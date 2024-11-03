@@ -1,5 +1,6 @@
 import re
 from fpdf import FPDF
+import asyncio
 
 def segment_text_by_sentence(text):
     sentence_boundaries = re.finditer(r'(?<=[.!?])\s+', text)
@@ -22,3 +23,6 @@ def create_pdf(text: str, output_path: str):
     pdf.set_font("Arial", size=12)
     pdf.multi_cell(0, 10, text)
     pdf.output(output_path)
+
+async def create_pdf_async(text: str, pdf_path: str):
+    await asyncio.to_thread(create_pdf, text, pdf_path)
