@@ -1,16 +1,3 @@
-# from fastapi import FastAPI
-# from api.routes import product_recognition, text_recognition
-# import os
-# import sys
-# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "AI")))
-# app = FastAPI()
-
-# app.include_router(product_recognition.router, prefix="/product", tags=["Product Recognition"])
-# app.include_router(text_recognition.router, prefix="/text", tags=["Text Recognition"])
-
-# @app.get("/")
-# async def root():
-#     return {"message": "Welcome to the FastAPI Application"}
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
 from tempfile import NamedTemporaryFile
