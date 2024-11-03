@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 from pyzbar.pyzbar import decode
 import requests
 import pandas as pd
@@ -7,19 +8,17 @@ from typing import Dict, Any, Optional
 class BarcodeProcessor:
     def __init__(self):
         pass 
-    def detect_barcode(self, image_path: str) -> Optional[str]:
-        image = cv2.imread(image_path)
-        if image is None:
-            raise ValueError(f"Could not read image at {image_path}")
-        
+    def detect_barcode(self, image: np.ndarray) -> Optional[str]:
+        # Convert the image to grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         
+        # Decode barcodes in the grayscale image
         barcodes = decode(gray)
         
         if not barcodes:
-            print("No barcode detected")
-            return None
+            raise ValueError("No barcode detected")
         
+        # Return the first detected barcode data
         return barcodes[0].data.decode('utf-8')
     
     def get_product_info(self, barcode: str) -> Dict[str, Any]:

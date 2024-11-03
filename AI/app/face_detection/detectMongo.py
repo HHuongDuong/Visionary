@@ -4,6 +4,7 @@ from deepface import DeepFace
 from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
+import numpy as np
 
 load_dotenv("../../.env")
 
@@ -22,16 +23,16 @@ def connect_mongodb():
     except Exception as e:
         print(f"Error connecting to MongoDB: {e}")
         return None
-
-def save_embedding_to_db(collection, name, embedding):
-    """Save embedding to MongoDB."""
+collection = connect_mongodb()
+def save_embedding_to_db(name: str, embedding: np.ndarray):
     try:
         collection.insert_one({
             "name": name,
-            "embedding": embedding.tolist()  
+            "embedding": embedding.tolist()
         })
     except Exception as e:
         print(f"Error saving embedding to MongoDB: {e}")
+        raise None
 
 def find_existing_face(collection, embedding):
     """Find existing faces in the database."""

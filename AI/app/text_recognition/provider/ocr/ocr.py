@@ -7,7 +7,7 @@ import numpy as np
 import pytesseract
 from PIL import Image
 
-from app.text_recognition.provider import SupportedLanguages
+from .. import SupportedLanguages
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
