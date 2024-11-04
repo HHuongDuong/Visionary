@@ -10,10 +10,14 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from AI.face_detection.detectMongo import process_frame, save_embedding_to_db, connect_mongodb
+from AI.face_detection.detectMongo import process_frame, save_embedding_to_db, connect_mongodb, calculate_focal_length
 
 app = FastAPI()
 # Registration Endpoint
+image_path = "dis.jpg"  
+
+calculate_focal_length(image_path)
+
 @app.post("/face_detection/register")
 async def register(name: str, file: UploadFile = File(...)):
     image_data = await file.read()

@@ -6,9 +6,13 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from AI.distance_estimate.stream_video_distance import calculate_distance_from_image
+from AI.distance_estimate.stream_video_distance import calculate_distance_from_image, calculate_focal_length
 
 app = FastAPI()
+
+image_path = "dis.jpg"  
+
+calculate_focal_length(image_path)
 
 @app.post("/distance_estimate/distance")
 async def calculate_distance(file: UploadFile = File(...)):
