@@ -4,7 +4,7 @@ from deepface import DeepFace
 from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
-import json
+from sklearn.metrics.pairwise import cosine_similarity
 
 load_dotenv()
 
@@ -30,102 +30,84 @@ def save_embedding_to_db(collection, name, embedding):
             "name": name,
             "embedding": embedding.tolist()  
         })
+        print(f"Saved {name} to the database.")
     except Exception as e:
         print(f"Error saving embedding to MongoDB: {e}")
 
 def find_existing_face(collection, embedding):
-    """Find existing faces in the database."""
-    threshold = 0.6  
-    vector_search_stage = {
-        "$vectorSearch": {
-            "index": "vector_index",  
-            "queryVector": embedding.tolist(), 
-            "path": "embedding",  
-            "numCandidates": 150, 
-            "limit": 4  
-        }
-    }
-    
-    try:
-        results = collection.aggregate([vector_search_stage])
-    except Exception as e:
-        print(f"Error searching vector: {e}")
-        return []
-
+    """Find existing faces in the database and return the one with the highest similarity."""
+    threshold = 0.6
     matched_faces = []
-    for doc in results:
-        score = doc.get("score", 0)
-        if score < threshold:
-            matched_faces.append(doc['name'])
-    return matched_faces
 
-def detect_and_recognize_face(image_path=None):
-    """Detect and recognize faces from an image or video feed."""
+    existing_faces = collection.find({})
+    
+    for doc in existing_faces:
+        existing_embedding = np.array(doc['embedding'])
+        sim = cosine_similarity([embedding], [existing_embedding])[0][0]
+        print(f"Similarity with {doc['name']}: {sim}")
+        if sim >= threshold:
+            matched_faces.append((doc['name'], sim)) 
+    
+    if matched_faces:
+        highest_similarity_face = max(matched_faces, key=lambda x: x[1])  
+        return highest_similarity_face  
+    return None  
+
+def detect_and_recognize_face():
+    """Detect and recognize a face from a live video feed."""
     collection = connect_mongodb()  
     if collection is None:
         print("Unable to connect to MongoDB. Exiting the program.")
         return
 
-    current_identity = None  
-
-    if image_path:
-        # Process image file
-        frame = cv2.imread(image_path)
-        if frame is None:
-            print(f"Error reading image: {image_path}")
-            return
-    else:
-        # Process live video feed
-        cap = cv2.VideoCapture(0)  
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
-            
-            process_frame(frame, collection, current_identity)
-            
-            cv2.imshow("Camera", frame)
-            
-            if cv2.waitKey(1) & 0xFF == ord('q'):  
-                break
-            elif cv2.waitKey(1) & 0xFF == ord('c'): 
-                current_identity = None  
-
-        cap.release()
-        cv2.destroyAllWindows()
+    cap = cv2.VideoCapture(0)  
+    ret, frame = cap.read() 
+    if not ret:
+        print("Error reading from webcam.")
+        cap.release()  
         return
+    
+    process_frame(frame, collection)
 
-    # Process the image frame
-    process_frame(frame, collection, current_identity)
+    cap.release()  
+    cv2.destroyAllWindows()  
 
-def process_frame(frame, collection, current_identity):
+def process_frame(frame, collection):
     """Analyze the frame and find or save embeddings."""
     try:
-        embedding = DeepFace.represent(frame, enforce_detection=False)[0]['embedding']
+        representations = DeepFace.represent(frame, enforce_detection=False)
+        if representations and isinstance(representations, list):
+            embedding = representations[0]['embedding']
+        else:
+            print("No faces detected.")
+            return
+
         analysis = DeepFace.analyze(frame, actions=['age', 'gender', 'emotion', 'race'], enforce_detection=False)
+        
+        if analysis and isinstance(analysis, list):
+            analysis_result = analysis[0]  
 
-        cv2.putText(frame, 
-                    f"Age: {analysis['age']} | Gender: {analysis['gender']} | Emotion: {analysis['dominant_emotion']} | Race: {analysis['dominant_race']}", 
-                    (10, 30), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 
-                    0.7, 
-                    (255, 255, 255), 
-                    2, 
-                    cv2.LINE_AA)
+            age = analysis_result['age']
+            dominant_gender = analysis_result['dominant_gender']
+            dominant_emotion = analysis_result['dominant_emotion']
+            dominant_race = analysis_result['dominant_race']
 
-        matched_faces = find_existing_face(collection, np.array(embedding))
-        if not matched_faces:
-            if current_identity is None:  
+            print(f"Age: {age}")
+            print(f"Gender: {dominant_gender}")
+            print(f"Emotion: {dominant_emotion}")
+            print(f"Race: {dominant_race}")
+
+            highest_similarity_face = find_existing_face(collection, np.array(embedding))
+            if highest_similarity_face is None:
                 current_identity = input("Enter the name of this person: ")
                 save_embedding_to_db(collection, current_identity, np.array(embedding))
-        else:
-            print(f"Recognized as: {', '.join(matched_faces)}.")
+            else:
+                name, similarity = highest_similarity_face
+                print(f"Recognized as: {name} with similarity {similarity}.")
+        
     except Exception as e:
         print(f"Error during analysis: {e}")
 
 if __name__ == "__main__":
-    # For testing with an image, provide the image path:
-    # detect_and_recognize_face(image_path=r'D:\DeepFace\database\quyminh.jpg')
-
     # To start live video feed detection:
     detect_and_recognize_face()
