@@ -3,10 +3,10 @@ import os
 import threading
 import asyncio
 import queue
+import re
 from websockets.sync.client import connect
 import pyaudio
-import app
-from app.config import config
+import requests
 
 
 class DeepgramSpeaker:
@@ -130,23 +130,43 @@ class Speaker:
             except Exception as e:
                 print(f"_play: {e}")
 
-def main():
 
-    speaker = DeepgramSpeaker(app.config.config.DEEPGRAM_API_KEY)
-    speaker.connect()
-    speaker.start_receiver()
+def segment_text_by_sentence(text):
+    sentence_boundaries = re.finditer(r'(?<=[.!?])\s+', text)
+    boundaries_indices = [boundary.start() for boundary in sentence_boundaries]
+    
+    segments = []
+    start = 0
+    for boundary_index in boundaries_indices:
+        segments.append(text[start:boundary_index + 1].strip())
+        start = boundary_index + 1
+    segments.append(text[start:].strip())
 
-    story = [
-            "The sun had just begun to rise over the sleepy town of Millfield.",
-            "Emily, a young woman in her mid-twenties, was already awake and bustling about.",
-        ]
+    return segments
 
-    for sentence in story:
-            speaker.speak(sentence)
 
-    speaker.flush()
-    input("Press Enter to exit...")
-    speaker.close()
+# TODO: Make this into a stream
+def text_to_speech(api_key=None, text=None, output_path = None):
+    if os.path.exists(output_path):
+        os.remove(output_path)
+    else:
+        with open(output_path, 'w') as f:
+            pass
+    DEEPGRAM_URL = 'https://api.deepgram.com/v1/speak?model=aura-helios-en'
+    headers = {
+    "Authorization": f"Token {api_key}",
+    "Content-Type": "application/json"
+    }
+    segments = segment_text_by_sentence(text)
+    with open(output_path, "wb") as f:
+        for segment in segments:
+            payload = {"text": text}
+            with requests.post(DEEPGRAM_URL, stream=True, headers=headers, json=payload) as r:
+                for chunk in r.iter_content(chunk_size=1024):
+                    if chunk:
+                        f.write(chunk)
 
-if __name__ == "__main__":
-    main()
+
+async def text_to_speech_async(api_key=None, text=None, output_path = None):
+    await asyncio.to_thread(text_to_speech, api_key, text, output_path)
+    

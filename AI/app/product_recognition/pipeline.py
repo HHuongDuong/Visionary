@@ -50,6 +50,7 @@ class BarcodeProcessor:
                     
                     result['nutrition'] = nutrition
                     
+                    result = self.format_result(result)
                     return result
         except requests.RequestException as e:
             print(f"Error fetching product info: {e}")
@@ -63,23 +64,29 @@ class BarcodeProcessor:
             return self.get_product_info(barcode)
         return {'error': 'No barcode detected'}
 
+    def format_result(self, result: Dict[str, Any]) -> str:
+        output = []
+        if 'error' not in result:
+            output.append("Product Information:")
+            for key, value in result.items():
+                if key == 'nutrition':
+                    output.append("\nNutritional Information (per 100g):")
+                    for nutrient, amount in value.items():
+                        output.append(f"  {nutrient.replace('_', ' ').title()}: {amount}")
+                else:
+                    output.append(f"{key.capitalize()}: {value}")
+        else:
+            output.append(f"Error: {result['error']}")
+        return "\n".join(output)
+
+
 def main():
     processor = BarcodeProcessor()
-    image_path = '/home/xuananle/Documents/Learn/HMI/VisionMate/AI/app/product_recognition/img.png'
+    image_path = '/home/xuananle/Documents/Learn/HMI/VisionMate/AI/app/product_recognition/image.png'
     
     try:
         result = processor.process_image(image_path)
-        if 'error' not in result:
-            print("\nProduct Information:")
-            for key, value in result.items():
-                if key == 'nutrition':
-                    print("\nNutritional Information (per 100g):")
-                    for nutrient, amount in value.items():
-                        print(f"  {nutrient.replace('_', ' ').title()}: {amount}")
-                else:
-                    print(f"{key.capitalize()}: {value}")
-        else:
-            print(f"Error: {result['error']}")
+        print(result)
     except Exception as e:
         print(f"An error occurred: {e}")
 
