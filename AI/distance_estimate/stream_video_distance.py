@@ -95,21 +95,42 @@ def calculate_distance_from_image(image_data):
     if image is None:
         print("Không thể tải ảnh.")
         return None
-
+    
     boxes, scores, class_ids = yolov8_detector(image)
     results = []
+    rotation_matrix = np.eye(3)  
+    translation_vector = np.array([0, 0, 0])  
 
     for i, box in enumerate(boxes):
         object_width = box[2] - box[0]
+            
         inches = distance_to_camera(KNOWN_WIDTH, focalLength, object_width)
+            
         class_id = class_ids[i]
         class_name = class_names[class_id]
+            
+        cv2.rectangle(image, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0, 255, 0), 2)
+            
+        label = f"{class_name}: {inches / 12:.2f} ft"  
+        cv2.putText(image, label, (int(box[0]), int(box[1] - 10)), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (0, 255, 0), 1)
+            
+        center_x = (box[0] + box[2]) / 2
+        center_y = (box[1] + box[3]) / 2
+        object_depth = inches 
+            
+        object_position_camera = np.array([center_x, center_y, object_depth])
+        object_position_world = apply_extrinsic_transform(object_position_camera, rotation_matrix, translation_vector)
+            
+        position_label = f"Position (World): {object_position_world}"
+        cv2.putText(image, position_label, (10, 30 + i * 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
         results.append({
             "class": class_name,
-            "distance": inches
+            "distance": inches,
+            "position": object_position_world.tolist()
         })
-        
+
     return results
 
 calculate_focal_length(image_path)
