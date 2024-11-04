@@ -1,0 +1,5 @@
+{
+    "python.analysis.extraPaths": [
+        "./AI/app/text_recognition/provider/ocr"
+    ]
+}
