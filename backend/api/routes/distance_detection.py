@@ -4,17 +4,19 @@ import numpy as np
 import cv2
 import os
 import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from AI.distance_estimate.stream_video_distance import calculate_distance_from_image, calculate_focal_length
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
+sys.path.append(root_dir)
+AI_path = os.path.join(root_dir, "AI")
+
+from AI.app.distance_estimate.stream_video_distance import calculate_distance_from_image, calculate_focal_length
 
 app = FastAPI()
-
 image_path = "dis.jpg"  
 
 calculate_focal_length(image_path)
 
-@app.post("/distance_estimate/distance")
+@app.post("/distance_estimate")
 async def calculate_distance(file: UploadFile = File(...)):
     image_data = await file.read()
     np_arr = np.frombuffer(image_data, np.uint8)
