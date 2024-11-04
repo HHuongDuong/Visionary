@@ -88,5 +88,29 @@ def run_realtime_detection():
     cap.release()
     cv2.destroyAllWindows()
 
+def calculate_distance_from_image(image_data):
+    global focalLength
+    image = cv2.imdecode(np.frombuffer(image_data, np.uint8), cv2.IMREAD_COLOR)
+        
+    if image is None:
+        print("Không thể tải ảnh.")
+        return None
+
+    boxes, scores, class_ids = yolov8_detector(image)
+    results = []
+
+    for i, box in enumerate(boxes):
+        object_width = box[2] - box[0]
+        inches = distance_to_camera(KNOWN_WIDTH, focalLength, object_width)
+        class_id = class_ids[i]
+        class_name = class_names[class_id]
+
+        results.append({
+            "class": class_name,
+            "distance": inches
+        })
+        
+    return results
+
 calculate_focal_length(image_path)
 run_realtime_detection()
