@@ -3,7 +3,7 @@ import numpy as np
 from .yolov8.YOLOv8 import YOLOv8
 from .yolov8.utils import class_names  
 
-model_path = r"C:\Users\admin\Desktop\VisionMate\AI\app\distance_estimate\models\yolov8m.onnx"
+model_path = r"/home/quanng/my_project/TTNM/VisionMate/AI/app/distance_estimate/models/yolov8m.onnx"
 yolov8_detector = YOLOv8(model_path, conf_thres=0.2, iou_thres=0.3)
 
 image_path = "dis.jpg"  
@@ -15,7 +15,7 @@ focalLength = None
 def distance_to_camera(knownWidth, focalLength, perWidth):
     return (knownWidth * focalLength) / perWidth
 
-def calculate_focal_length(reference_image_path):
+def calculate_focal_length_stream(reference_image_path):
     global focalLength
     reference_image = cv2.imread(reference_image_path)
     
@@ -32,6 +32,7 @@ def calculate_focal_length(reference_image_path):
         print(f"Tiêu cự đã tính: {focalLength}")
     else:
         print("Không phát hiện được đối tượng trong ảnh tham chiếu.")
+    return focalLength
 
 def apply_extrinsic_transform(points, rotation_matrix, translation_vector):
     transformed_points = np.dot(rotation_matrix, points.T).T + translation_vector
@@ -134,5 +135,5 @@ def calculate_distance_from_image(image_data):
     return results
 
 if __name__ == "__main__":
-    calculate_focal_length(image_path)
+    calculate_focal_length_stream(image_path)
     run_realtime_detection()
