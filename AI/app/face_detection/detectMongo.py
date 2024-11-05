@@ -2,15 +2,31 @@ import numpy as np
 import cv2
 from deepface import DeepFace
 from pymongo import MongoClient
-import os
 from dotenv import load_dotenv
+from sklearn.metrics.pairwise import cosine_similarity
+import os
+import sys
+import json
 
-load_dotenv("../../.env")
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(root_dir)
+distance_path = os.path.join(root_dir, "distance_estimate")
 
+from distance_estimate.yolov8.YOLOv8 import YOLOv8
+
+image_path = os.path.join(distance_path, "dis.jpg")
+model_path = os.path.join(distance_path, "models", "yolov8m.onnx")
+yolov8_detector = YOLOv8(model_path, conf_thres=0.2, iou_thres=0.3) 
+
+load_dotenv()
 
 MONGODB_URI = os.getenv("MONGODB_URI")
 DB_NAME = os.getenv("DB_NAME")
 DB_COLLECTION = os.getenv("DB_COLLECTION")
+
+KNOWN_DISTANCE = 24.0  
+KNOWN_WIDTH = 11.0    
+focalLength = None
 
 def connect_mongodb():
     """Connect to the MongoDB database."""
@@ -30,102 +46,117 @@ def save_embedding_to_db(collection, name, embedding):
             "name": name,
             "embedding": embedding.tolist()  
         })
+        print(f"Saved {name} to the database.")
     except Exception as e:
         print(f"Error saving embedding to MongoDB: {e}")
 
 def find_existing_face(collection, embedding):
-    """Find existing faces in the database."""
-    threshold = 0.6  
-    vector_search_stage = {
-        "$vectorSearch": {
-            "index": "vector_index",  
-            "queryVector": embedding.tolist(), 
-            "path": "embedding",  
-            "numCandidates": 150, 
-            "limit": 4  
-        }
-    }
-    
-    try:
-        results = collection.aggregate([vector_search_stage])
-    except Exception as e:
-        print(f"Error searching vector: {e}")
-        return []
-
+    """Find existing faces in the database and return the one with the highest similarity."""
+    threshold = 0.5
     matched_faces = []
-    for doc in results:
-        score = doc.get("score", 0)
-        if score < threshold:
-            matched_faces.append(doc['name'])
-    return matched_faces
 
-def detect_and_recognize_face(image_path=None):
-    """Detect and recognize faces from an image or video feed."""
+    existing_faces = collection.find({})
+    
+    for doc in existing_faces:
+        existing_embedding = np.array(doc['embedding'])
+        sim = cosine_similarity([embedding], [existing_embedding])[0][0]
+        print(f"Similarity with {doc['name']}: {sim}")
+        if sim >= threshold:
+            matched_faces.append((doc['name'], sim)) 
+    
+    if matched_faces:
+        highest_similarity_face = max(matched_faces, key=lambda x: x[1])  
+        return highest_similarity_face  
+    return None  
+
+def distance_to_camera(knownWidth, focalLength, perWidth):
+    """Tính khoảng cách từ camera đến đối tượng."""
+    return (knownWidth * focalLength) / perWidth
+
+def calculate_focal_length(reference_image_path):
+    """Tính tiêu cự dựa trên ảnh tham chiếu."""
+    global focalLength
+    reference_image = cv2.imread(reference_image_path)
+    
+    if reference_image is None:
+        print("Không thể tải ảnh tham chiếu.")
+        return None
+
+    boxes, _, _ = yolov8_detector(reference_image)
+    
+    if len(boxes) > 0:
+        first_box = boxes[0]
+        first_box_width = first_box[2] - first_box[0]
+        focalLength = (first_box_width * KNOWN_DISTANCE) / KNOWN_WIDTH
+        print(f"Tiêu cự đã tính: {focalLength}")
+    else:
+        print("Không phát hiện được đối tượng trong ảnh tham chiếu.")
+
+def detect_and_analyze_face():
+    """Detect and analyze a face from the live video feed."""
     collection = connect_mongodb()  
     if collection is None:
         print("Unable to connect to MongoDB. Exiting the program.")
         return
+    cap = cv2.VideoCapture(0)
 
-    current_identity = None  
-
-    if image_path:
-        # Process image file
-        frame = cv2.imread(image_path)
-        if frame is None:
-            print(f"Error reading image: {image_path}")
-            return
-    else:
-        # Process live video feed
-        cap = cv2.VideoCapture(0)  
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
-
-            process_frame(frame, collection, current_identity)
-            
-            cv2.imshow("Camera", frame)
-            
-            if cv2.waitKey(1) & 0xFF == ord('q'):  
-                break
-            elif cv2.waitKey(1) & 0xFF == ord('c'): 
-                current_identity = None  
-
-        cap.release()
-        cv2.destroyAllWindows()
+    if focalLength is None:
+        print("Focal length not calculated. Please provide a reference image.")
         return
 
-    # Process the image frame
-    process_frame(frame, collection, current_identity)
+    ret, frame = cap.read()
+    if not ret:
+        print("Cannot retrieve frame from webcam.")
+        cap.release()
+        return
 
-def process_frame(frame, collection, current_identity):
+    process_frame(frame, collection)
+    cap.release()
+    cv2.destroyAllWindows()  
+
+def process_frame(frame, collection):
     """Analyze the frame and find or save embeddings."""
+    response_data = []
     try:
-        embedding = DeepFace.represent(frame, enforce_detection=False)[0]['embedding']
+        representations = DeepFace.represent(frame, enforce_detection=False)
+        if isinstance(representations, list) and len(representations) > 0:
+            embedding = representations[0]['embedding']
+
         analysis = DeepFace.analyze(frame, actions=['age', 'gender', 'emotion', 'race'], enforce_detection=False)
+        if analysis and isinstance(analysis, list):
+            analysis_result = analysis[0]  
+            
+            age = analysis_result['age']
+            dominant_gender = analysis_result['dominant_gender']
+            dominant_emotion = analysis_result['dominant_emotion']
+            dominant_race = analysis_result['dominant_race']
 
-        cv2.putText(frame, 
-                    f"Age: {analysis['age']} | Gender: {analysis['gender']} | Emotion: {analysis['dominant_emotion']} | Race: {analysis['dominant_race']}", 
-                    (10, 30), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 
-                    0.7, 
-                    (255, 255, 255), 
-                    2, 
-                    cv2.LINE_AA)
+            highest_similarity_face = find_existing_face(collection, np.array(embedding))
+            if highest_similarity_face:
+                name, similarity = highest_similarity_face
 
-        matched_faces = find_existing_face(collection, np.array(embedding))
-        if not matched_faces:
-            if current_identity is None:  
-                current_identity = input("Enter the name of this person: ")
-                save_embedding_to_db(collection, current_identity, np.array(embedding))
-        else:
-            print(f"Recognized as: {', '.join(matched_faces)}.")
+                boxes, _, _ = yolov8_detector(frame)
+                if boxes is not None and len(boxes) > 0:
+                    first_box = boxes[0]
+                    object_width = first_box[2] - first_box[0]
+                    distance = distance_to_camera(KNOWN_WIDTH, focalLength, object_width)
+                    
+                    response_data.append({
+                        "Age": age,
+                        "Gender": dominant_gender,
+                        "Emotion": dominant_emotion,
+                        "Race": dominant_race,
+                        "Name": name,
+                        "Distance": distance
+                    })
+        
+        return response_data  
+
     except Exception as e:
-        print(f"Error during analysis: {e}")
+        print(f"Error in process_frame: {e}")
+        return {"error": str(e)}
 
 if __name__ == "__main__":
-    # For testing with an image, provide the image path:
-    # detect_and_recognize_face(image_path=r'D:\DeepFace\database\quyminh.jpg')
-
-    # To start live video feed detection:
-    detect_and_recognize_face()
+    calculate_focal_length(image_path)
+    
+    detect_and_analyze_face()

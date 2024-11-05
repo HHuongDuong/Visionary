@@ -1,9 +1,7 @@
 import numpy as np
 import cv2
 
-class_names = ['1000', '10000', '100000', '2000', '20000', '200000', 
-               '500', '5000', '50000', '500000']
-
+class_names = ['1000', '10000', '100000', '2000', '20000', '200000', '500', '5000', '50000', '500000']
 
 # Create a list of colors for each class where each color is a tuple of 3 integer values
 rng = np.random.default_rng(3)
