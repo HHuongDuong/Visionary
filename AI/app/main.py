@@ -109,8 +109,11 @@ async def product_recognition(file: UploadFile = File(...)):
     try:
         with NamedTemporaryFile(delete=False) as temp:
             temp.write(file.file.read())
-            temp.close()
-            result = barcode_processor.process_image(temp.name)
+            temp.flush()
+            img = cv2.imread(temp.name)
+            if img is None:
+                raise HTTPException(status_code=400, detail="Invalid image file")
+            result = barcode_processor.process_image(img)
             audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
             deepgram_text_to_speech(api_key= config.DEEPGRAM_API_KEY, 
                                     text = result , output_path=audio_path)
