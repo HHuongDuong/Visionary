@@ -26,16 +26,15 @@ class OpenAIProvider:
                 messages=[
                     {
                         "role": "system",
-                        "content": """You are assisting someone who is visually impaired. 
-                        Provide a brief, concise description of the image in one sentence, 
-                        including key details. Limit your response to no more than 50 words."""
+                        "content": """Bạn đang hỗ trợ người khiếm thị. Cung cấp mô tả ngắn gọn, súc tích về hình ảnh trong một câu, bao gồm các chi tiết chính. Trả lời một cách tóm tắt trong vài câu và đừng quá 60 từ cũng như ngắt câu giữa chừng"""
+
                     },
                     {
                         "role": "user",
                         "content": [
                             {
                                 "type": "text",
-                                "text": "Please describe this image."
+                                "text": "hãy miêu tả bức ảnh này."
                             },
                             {
                                 "type": "image_url",
@@ -46,7 +45,7 @@ class OpenAIProvider:
                         ]
                     }
                 ],
-                max_tokens=50
+                max_tokens=60
             )
 
             # Extract the description from the response
@@ -75,16 +74,15 @@ class OpenAIProvider:
                 messages=[
                     {
                         "role": "system",
-                        "content": """You are assisting someone who is visually impaired. 
-                        Provide a brief, concise description of the image in one sentence, 
-                        including key details. Limit your response to no more than 50 words."""
+                        "content": """Bạn đang hỗ trợ người khiếm thị. Cung cấp mô tả ngắn gọn, súc tích về hình ảnh trong một câu, bao gồm các chi tiết chính. Trả lời một cách tóm tắt trong vài câu và đừng quá 60 từ cũng như ngắt câu giữa chừng"""
+
                     },
                     {
                         "role": "user",
                         "content": [
                             {
                                 "type": "text",
-                                "text": "Please describe this image."
+                                "text": "hãy miêu tả bức ảnh này."
                             },
                             {
                                 "type": "image_url",
