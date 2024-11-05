@@ -194,14 +194,22 @@ async def recognize(file: UploadFile = File(...)):
             data = response_data[0]  
             recognized_name = data.get('Name', 'Unknown')
 
-            audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
-            deepgram_text_to_speech(api_key= config.DEEPGRAM_API_KEY, 
-                                    text = f"Hello {recognized_name}, recognition successful." , output_path=audio_path)
+            try:
+                audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
+                deepgram_text_to_speech(
+                    api_key=config.DEEPGRAM_API_KEY, 
+                    text=f"Hello {recognized_name}, recognition successful.", 
+                    output_path=audio_path
+                )
+            except Exception as audio_error:
+                print(f"Error generating audio: {audio_error}")
+                raise HTTPException(status_code=500, detail="Audio generation failed")
+            
             print(data)
-
+            
             return {
                 "message": "Recognition successful",
-                "name": data.get('Name', 'Unknown'),
+                "name": recognized_name,
                 "age": data.get('Age'),
                 "gender": data.get('Gender'),
                 "emotion": data.get('Emotion'),
@@ -209,8 +217,13 @@ async def recognize(file: UploadFile = File(...)):
                 "distance": data.get('Distance'),
                 "audio_path": audio_path
             }
+        
         else:
             raise HTTPException(status_code=404, detail="Face not recognized")
+    
+    except HTTPException as http_exc:
+        # Allow any raised HTTPException to propagate directly
+        raise http_exc
     except Exception as e:
         print(f"Error in recognition endpoint: {e}")
         raise HTTPException(status_code=500, detail="Failed to process recognition")
