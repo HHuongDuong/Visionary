@@ -1,6 +1,8 @@
 import cv2
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from fpdf import FPDF
+import numpy as np
 import utils
 from currency_detection.yolov8.YOLOv8 import YOLOv8
 from config import config
@@ -12,13 +14,15 @@ from tempfile import NamedTemporaryFile
 from text_to_speech.provider.Deepgram.deepgram import text_to_speech_async as deepgram_text_to_speech_async
 from text_to_speech.provider.Deepgram.deepgram import text_to_speech as deepgram_text_to_speech
 from product_recognition.pipeline import BarcodeProcessor
+from deepface import DeepFace
 import time
 from image_captioning.provider.gpt4.gpt4 import OpenAIProvider
 import asyncio
-
+from distance_estimate.stream_video_distance import calculate_focal_length_stream, calculate_distance_from_image
+from face_detection.detectMongo import process_frame, save_embedding_to_db, connect_mongodb, calculate_focal_length
 start = time.time()
 ocr = OcrRecognition()
-currency_detection_model_path = "./currency_detection/model/best.onnx"
+currency_detection_model_path = "./currency_detection/model/best8.onnx"
 currency_detector = YOLOv8(currency_detection_model_path, conf_thres=0.2, iou_thres=0.3)
 gpt4_captioning = OpenAIProvider(config.OPEN_API_KEY)
 barcode_processor = BarcodeProcessor()
@@ -118,6 +122,96 @@ async def product_recognition(file: UploadFile = File(...)):
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+image_path = "dis.jpg"  
+
+calculate_focal_length_stream(image_path)
+
+@app.post("/distance_estimate")
+async def calculate_distance(file: UploadFile = File(...)):
+    image_data = await file.read()
+    np_arr = np.frombuffer(image_data, np.uint8)
+    image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+    if image is None:
+        raise HTTPException(status_code=400, detail="Invalid image file")
+    
+    results = calculate_distance_from_image(image_data)
+
+    if results is None:
+        raise HTTPException(status_code=400, detail="Không thể xử lý ảnh.")
+
+    return JSONResponse(content=results)
+
+collection = connect_mongodb()
+if collection is None:
+    raise HTTPException(status_code=500, detail="Database connection failed")
+calculate_focal_length(image_path)
+@app.post("/face_detection/register")
+async def register(name: str, file: UploadFile = File(...)):
+    image_data = await file.read()
+    np_arr = np.frombuffer(image_data, np.uint8)
+    image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+    if image is None:
+        raise HTTPException(status_code=400, detail="Invalid image file")
+
+    
+    # Generate embedding
+    try:
+        embedding = DeepFace.represent(image, enforce_detection=False)[0]['embedding']
+        save_embedding_to_db(collection, name, np.array(embedding))
+
+        # Generate success voice use deepgram
+        audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
+        deepgram_text_to_speech(api_key= config.DEEPGRAM_API_KEY, 
+                                    text = f"Registration successful" , output_path=audio_path)
+            
+        return JSONResponse(content= {
+            "audio_path": audio_path
+        })
+        
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail="Failed to process registration")
+
+# Recognition Endpoint
+@app.post("/face_detection/recognize")
+async def recognize(file: UploadFile = File(...)):
+    image_data = await file.read()
+    np_arr = np.frombuffer(image_data, np.uint8)
+    image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+    if image is None:
+        raise HTTPException(status_code=400, detail="Invalid image file")
+
+    try:
+        response_data = process_frame(image, collection)
+        if "error" in response_data:
+            raise HTTPException(status_code=500, detail=response_data['error'])
+        
+        if response_data:
+            data = response_data[0]  
+            recognized_name = data.get('Name', 'Unknown')
+
+            audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
+            deepgram_text_to_speech(api_key= config.DEEPGRAM_API_KEY, 
+                                    text = f"Hello {recognized_name}, recognition successful." , output_path=audio_path)
+            print(data)
+
+            return {
+                "message": "Recognition successful",
+                "name": data.get('Name', 'Unknown'),
+                "age": data.get('Age'),
+                "gender": data.get('Gender'),
+                "emotion": data.get('Emotion'),
+                "race": data.get('Race'),
+                "distance": data.get('Distance'),
+                "audio_path": audio_path
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Face not recognized")
+    except Exception as e:
+        print(f"Error in recognition endpoint: {e}")
+        raise HTTPException(status_code=500, detail="Failed to process recognition")
+
 
 @app.get("/download_pdf")
 async def download_pdf(pdf_path: str):
