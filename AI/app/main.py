@@ -20,7 +20,7 @@ import time
 from image_captioning.provider.gpt4.gpt4 import OpenAIProvider
 import asyncio
 from distance_estimate.stream_video_distance import calculate_focal_length_stream, calculate_distance_from_image
-from face_detection.detectMongo import process_frame, save_embedding_to_db, connect_mongodb, calculate_focal_length
+from face_detection.detectMongo import find_existing_face, process_frame, save_embedding_to_db, connect_mongodb, calculate_focal_length
 start = time.time()
 ocr = OcrRecognition()
 currency_detection_model_path = "./currency_detection/model/best8.onnx"
@@ -196,10 +196,18 @@ async def recognize(file: UploadFile = File(...)):
     image_data = await file.read()
     np_arr = np.frombuffer(image_data, np.uint8)
     image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+    
     if image is None:
         raise HTTPException(status_code=400, detail="Invalid image file")
 
+    # Generate the embedding
     try:
+        embedding = DeepFace.represent(image, enforce_detection=False)[0]['embedding']
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate embedding: {e}")
+
+    try:
+        # Process the frame to get response data
         response_data = process_frame(image, collection)
         if "error" in response_data:
             raise HTTPException(status_code=500, detail=response_data['error'])
@@ -207,43 +215,33 @@ async def recognize(file: UploadFile = File(...)):
         if response_data:
             data = response_data[0]  
             recognized_name = data.get('Name', 'Unknown')
+            
+            # Find existing face without using await since it's a synchronous function
+            face_match = find_existing_face(collection, np.array(embedding))
 
-            try:
-                audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
-                # deepgram_text_to_speech(
-                #     api_key=config.DEEPGRAM_API_KEY, 
-                #     text=f"Hello {recognized_name}, recognition successful.", 
-                #     output_path=audio_path
-                # )
-                asyncio.gather(
-                    text_2_speech_async(text=f"Hello {recognized_name}, recognition successful.", output_path=audio_path)
-                )
-            except Exception as audio_error:
-                print(f"Error generating audio: {audio_error}")
-                raise HTTPException(status_code=500, detail="Audio generation failed")
-            
-            print(data)
-            
+            # If a face match is found, unpack the tuple
+            if face_match:
+                matched_name, similarity_score = face_match
+            else:
+                matched_name, similarity_score = "No match", None
+
+            # Construct the response with the face match and additional data
             return {
                 "message": "Recognition successful",
                 "name": recognized_name,
+                "matched_name": matched_name,
+                "similarity_score": similarity_score,
                 "age": data.get('Age'),
                 "gender": data.get('Gender'),
                 "emotion": data.get('Emotion'),
                 "race": data.get('Race'),
-                "distance": data.get('Distance'),
-                "audio_path": audio_path
+                "distance": data.get('Distance')
             }
-        
         else:
             raise HTTPException(status_code=404, detail="Face not recognized")
-    
-    except HTTPException as http_exc:
-        # Allow any raised HTTPException to propagate directly
-        raise http_exc
     except Exception as e:
         print(f"Error in recognition endpoint: {e}")
-        raise HTTPException(status_code=500, detail="Failed to process recognition")
+        raise HTTPException(status_code=404, detail="Failed to process recognition")
 
 
 @app.get("/download_pdf")

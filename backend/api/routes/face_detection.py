@@ -15,7 +15,7 @@ root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
 sys.path.append(root_dir)
 AI_path = os.path.join(root_dir, "AI")
 
-from AI.app.face_detection.detectMongo import process_frame, save_embedding_to_db, connect_mongodb, calculate_focal_length
+from AI.app.face_detection.detectMongo import detect_and_analyze_face, find_existing_face, process_frame, save_embedding_to_db, connect_mongodb, calculate_focal_length
 
 app = FastAPI()
 image_path = "dis.jpg"  
@@ -73,10 +73,18 @@ async def recognize(file: UploadFile = File(...)):
     image_data = await file.read()
     np_arr = np.frombuffer(image_data, np.uint8)
     image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+    
     if image is None:
         raise HTTPException(status_code=400, detail="Invalid image file")
 
+    # Generate the embedding
     try:
+        embedding = DeepFace.represent(image, enforce_detection=False)[0]['embedding']
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate embedding: {e}")
+
+    try:
+        # Process the frame to get response data
         response_data = process_frame(image, collection)
         if "error" in response_data:
             raise HTTPException(status_code=500, detail=response_data['error'])
@@ -84,40 +92,33 @@ async def recognize(file: UploadFile = File(...)):
         if response_data:
             data = response_data[0]  
             recognized_name = data.get('Name', 'Unknown')
+            
+            # Find existing face without using await since it's a synchronous function
+            face_match = find_existing_face(collection, np.array(embedding))
 
-            tts = gTTS(f"Hello {recognized_name}, recognition successful.", lang="en")
-            voice_file = NamedTemporaryFile(delete=False, suffix=".mp3")
-            tts.save(voice_file.name)
+            # If a face match is found, unpack the tuple
+            if face_match:
+                matched_name, similarity_score = face_match
+            else:
+                matched_name, similarity_score = "No match", None
 
-            pdf_file = NamedTemporaryFile(delete=False, suffix=".pdf")
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.set_font("Arial", size=12)
-            pdf.cell(200, 10, txt="Recognition Result", ln=True, align="C")
-            pdf.cell(200, 10, txt=f"Name: {data.get('Name', 'Unknown')}", ln=True, align="L")
-            pdf.cell(200, 10, txt=f"Age: {data.get('Age', 'N/A')}", ln=True, align="L")
-            pdf.cell(200, 10, txt=f"Gender: {data.get('Gender', 'N/A')}", ln=True, align="L")
-            pdf.cell(200, 10, txt=f"Emotion: {data.get('Emotion', 'N/A')}", ln=True, align="L")
-            pdf.cell(200, 10, txt=f"Race: {data.get('Race', 'N/A')}", ln=True, align="L")
-            pdf.cell(200, 10, txt=f"Distance: {data.get('Distance', 'N/A')}", ln=True, align="L")
-            pdf.output(pdf_file.name)
-
+            # Construct the response with the face match and additional data
             return {
                 "message": "Recognition successful",
-                "name": data.get('Name', 'Unknown'),
+                "name": recognized_name,
+                "matched_name": matched_name,
+                "similarity_score": similarity_score,
                 "age": data.get('Age'),
                 "gender": data.get('Gender'),
                 "emotion": data.get('Emotion'),
                 "race": data.get('Race'),
-                "distance": data.get('Distance'),
-                "pdf_path": pdf_file.name,
-                "voice_path": voice_file.name
+                "distance": data.get('Distance')
             }
         else:
             raise HTTPException(status_code=404, detail="Face not recognized")
     except Exception as e:
         print(f"Error in recognition endpoint: {e}")
-        raise HTTPException(status_code=500, detail="Failed to process recognition")
+        raise HTTPException(status_code=404, detail="Failed to process recognition")
 
 # Endpoint to download generated files
 @app.get("/face_detection/download_pdf")
