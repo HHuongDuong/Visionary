@@ -1,5 +1,6 @@
 package com.example.visionmate.ui.components
 
+import android.util.Log
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Menu
@@ -39,6 +40,8 @@ fun VMTopBar() {
 @Preview
 @Composable
 fun AppTopBarPreview() {
+    // how to print Hello world
+    Log.d("Hello", "World")
     VisionMateTheme {
         VMTopBar()
     }

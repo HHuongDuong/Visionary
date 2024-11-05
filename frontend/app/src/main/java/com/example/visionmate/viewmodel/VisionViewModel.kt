@@ -3,7 +3,7 @@ package com.example.visionmate.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.visionmate.repository.VisionRepository
+import com.example.visionmate.repository.Repository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,7 +15,7 @@ import okhttp3.MultipartBody
 import javax.inject.Inject
 
 @HiltViewModel
-class VisionViewModel @Inject constructor(private val repository: VisionRepository) : ViewModel() {
+class VisionViewModel @Inject constructor(private val repository: Repository) : ViewModel() {
     private val _result = MutableStateFlow<String?>(null)
     val result: StateFlow<String?> = _result.asStateFlow()
 

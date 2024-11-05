@@ -54,7 +54,7 @@ fun CameraPreview(
     ) { isGranted: Boolean ->
         hasCameraPermission = isGranted
         if (!isGranted) {
-            Toast.makeText(context, "Camera permission denied", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Camera permission denied buồn quá em ơi", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -112,7 +112,7 @@ fun CameraPreview(
         }
     } else {
         Box(modifier = Modifier.fillMaxSize()) {
-            Text("Camera permission is required to use this feature.")
+            Text("Camera permission anh nhớ em lắm Lan Anh à is required to use this feature.")
         }
     }
 }
