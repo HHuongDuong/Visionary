@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse
 from tempfile import NamedTemporaryFile
 from text_to_speech.provider.Deepgram.deepgram import text_to_speech_async as deepgram_text_to_speech_async
 from text_to_speech.provider.Deepgram.deepgram import text_to_speech as deepgram_text_to_speech
+from text_to_speech.provider.Deepgram.deepgram import text_2_speech, text_2_speech_async
 from product_recognition.pipeline import BarcodeProcessor
 from deepface import DeepFace
 import time
@@ -42,12 +43,13 @@ async def document_recognition(file: UploadFile = File(...)):
         with NamedTemporaryFile(delete=False) as temp:
             temp.write(file.file.read())
             temp.close()
-            result = ocr.recognize_text(temp.name, language="eng").text
+            result = ocr.recognize_text(temp.name, language="vie").text
             audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
             pdf_path = NamedTemporaryFile(delete=False, suffix=".pdf").name
             asyncio.gather(
-                deepgram_text_to_speech_async(api_key= config.DEEPGRAM_API_KEY, 
-                                        text = result , output_path=audio_path),
+                # deepgram_text_to_speech_async(api_key= config.DEEPGRAM_API_KEY, 
+                #                         text = result , output_path=audio_path),
+                text_2_speech_async(text=result, output_path=audio_path),
                 utils.create_pdf_async(result, pdf_path)
             )
             return JSONResponse(content={
@@ -71,8 +73,11 @@ async def currency_detection(file: UploadFile = File(...)):
             currency_detector(img)
             total_money = currency_detector.get_total_money()
             audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
-            deepgram_text_to_speech(api_key= config.DEEPGRAM_API_KEY, 
-                                    text = f"Total money is {total_money}" , output_path=audio_path)
+            # deepgram_text_to_speech(api_key= config.DEEPGRAM_API_KEY, 
+            #                         text = f"Total money is {total_money}" , output_path=audio_path)
+            asyncio.gather(
+                text_2_speech_async(text=f"Total money is {total_money}", output_path=audio_path)
+            )
             return JSONResponse(content={
                 "total_money": total_money,
                 "audio_path": audio_path
@@ -93,8 +98,11 @@ async def image_captioning(file: UploadFile = File(...)):
                 raise HTTPException(status_code=500, detail="Failed to encode image")
             description = gpt4_captioning.frame_description_stream(base64_image)
             audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
-            deepgram_text_to_speech(api_key= config.DEEPGRAM_API_KEY, 
-                                    text = description , output_path=audio_path)
+            # deepgram_text_to_speech(api_key= config.DEEPGRAM_API_KEY, 
+            #                         text = description , output_path=audio_path)
+            asyncio.gather(
+                text_2_speech_async(text=description, output_path=audio_path)
+            )
             return JSONResponse(content={
                 "description": description,
                 "audio_path": audio_path
@@ -115,8 +123,11 @@ async def product_recognition(file: UploadFile = File(...)):
                 raise HTTPException(status_code=400, detail="Invalid image file")
             result = barcode_processor.process_image(img)
             audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
-            deepgram_text_to_speech(api_key= config.DEEPGRAM_API_KEY, 
-                                    text = result , output_path=audio_path)
+            # deepgram_text_to_speech(api_key= config.DEEPGRAM_API_KEY, 
+            #                         text = result , output_path=audio_path)
+            asyncio.gather(
+                text_2_speech_async(text=result, output_path=audio_path)
+            )
             
             print(result)
             return JSONResponse(content= {
@@ -165,8 +176,11 @@ async def register(name: str, file: UploadFile = File(...)):
 
         # Generate success voice use deepgram
         audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
-        deepgram_text_to_speech(api_key= config.DEEPGRAM_API_KEY, 
-                                    text = f"Registration successful" , output_path=audio_path)
+        # deepgram_text_to_speech(api_key= config.DEEPGRAM_API_KEY, 
+        #                             text = f"Registration successful" , output_path=audio_path)
+        asyncio.gather(
+            text_2_speech_async(text=f"Registration successful", output_path=audio_path)
+        )
             
         return JSONResponse(content= {
             "audio_path": audio_path
@@ -196,10 +210,13 @@ async def recognize(file: UploadFile = File(...)):
 
             try:
                 audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
-                deepgram_text_to_speech(
-                    api_key=config.DEEPGRAM_API_KEY, 
-                    text=f"Hello {recognized_name}, recognition successful.", 
-                    output_path=audio_path
+                # deepgram_text_to_speech(
+                #     api_key=config.DEEPGRAM_API_KEY, 
+                #     text=f"Hello {recognized_name}, recognition successful.", 
+                #     output_path=audio_path
+                # )
+                asyncio.gather(
+                    text_2_speech_async(text=f"Hello {recognized_name}, recognition successful.", output_path=audio_path)
                 )
             except Exception as audio_error:
                 print(f"Error generating audio: {audio_error}")

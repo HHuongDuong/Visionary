@@ -170,3 +170,32 @@ def text_to_speech(api_key=None, text=None, output_path = None):
 async def text_to_speech_async(api_key=None, text=None, output_path = None):
     await asyncio.to_thread(text_to_speech, api_key, text, output_path)
     
+def text_2_speech( text, language='vi-vn', format='mp3', speed='0', pitch='0', output_path=None):
+    url = 'https://api.voicerss.org/'
+    params = {
+        'key': os.getenv("Voice_RSS") ,  # API key,
+        'hl': language,  # Ngôn ngữ: vi-vn (Tiếng Việt), en-us (Tiếng Anh), v.v.
+        'src': text,     # Văn bản cần chuyển đổi
+        'r': speed,      # Tốc độ: -10 đến 10
+        'p': pitch,      # Độ cao: -10 đến 10
+        'c': format      # Định dạng: mp3, wav, v.v.
+    }
+
+    response = requests.get(url, params=params)
+    if os.path.exists(output_path):
+        os.remove(output_path)
+    else:
+        with open(output_path, 'w') as f:
+            pass
+
+    if response.status_code == 200:
+        with open(output_path, 'wb') as f:
+            f.write(response.content)
+            for chunk in response.iter_content(chunk_size=1024):
+                if chunk:
+                    f.write(chunk)
+    else:
+        print("Failed to convert text to speech")
+
+async def text_2_speech_async(text, language='vi-vn', format='mp3', speed='0', pitch='0',output_path=None):
+    await asyncio.to_thread(text_2_speech, text, language, format, speed, pitch, output_path)
