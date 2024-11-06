@@ -26,7 +26,7 @@ const snapshot = async () => {
     const blob = await camera.value?.snapshot();
     if (blob) {
         snapshotUrl.value = URL.createObjectURL(blob);
-        console.log('Snapshot URL:', snapshotUrl.value);
+        // console.log('Snapshot URL:', snapshotUrl.value);
         sendImageToEndpoint(blob);
     }
 };
@@ -36,13 +36,21 @@ const sendImageToEndpoint = async (blob: Blob) => {
     if (!endpoint) return;
 
     const formData = new FormData();
-    formData.append('image', blob);
+    formData.append('file', blob); // Ensure 'file' matches the expected key on the backend
 
     try {
         const response = await fetch(endpoint, {
             method: 'POST',
-            body: formData
+            body: formData,
+            headers: {
+                'Accept': 'application/json'
+            }
         });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         jsonResponse.value = await response.json();
         console.log('JSON Response:', jsonResponse.value);
     } catch (error) {
