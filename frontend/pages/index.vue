@@ -1,7 +1,8 @@
 <template>
-    <Camera :resolution="{ width: 375, height: 812 }" ref="camera" autoplay></Camera>
-    <Buttonbar :defaultSelected="selectedButtonName" @update:selectedButton="updateSelectedButton" />
-    <!-- <img v-if="snapshotUrl" :src="snapshotUrl" alt="Snapshot" /> -->
+    <div>
+        <Camera :resolution="{ width: 375, height: 600 }" ref="camera" autoplay></Camera>
+        <Buttonbar :defaultSelected="selectedButtonName" @update:selectedButton="updateSelectedButton" />
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -36,7 +37,7 @@ const sendImageToEndpoint = async (blob: Blob) => {
     if (!endpoint) return;
 
     const formData = new FormData();
-    formData.append('file', blob); // Ensure 'file' matches the expected key on the backend
+    formData.append('file', blob); 
 
     try {
         const response = await fetch(endpoint, {
@@ -65,7 +66,7 @@ const updateSelectedButton = (buttonName: ButtonName) => {
 let intervalId: ReturnType<typeof setInterval> | undefined;
 
 onMounted(() => {
-    intervalId = setInterval(snapshot, 5000); 
+    intervalId = setInterval(snapshot, 50000); 
 });
 
 onUnmounted(() => {
