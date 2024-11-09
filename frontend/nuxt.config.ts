@@ -6,19 +6,28 @@ export default defineNuxtConfig({
   modules: ['@nuxtjs/tailwindcss', '@formkit/auto-animate/nuxt'],
   routeRules: {
     '/document_recognition': {
-      proxy: 'http://127.0.0.1:8000/document_recognition',
+      proxy: 'http://112.137.129.161:8000/document_recognition',
     },
     '/face_detection/recognize': {
-      proxy: 'http://127.0.0.1:8000/face_detection/recognize',
+      proxy: 'http://112.137.129.161:8000/face_detection/recognize',
     },
     '/image_captioning': {
-      proxy: 'http://127.0.0.1:8000/image_captioning',
+      proxy: 'http://112.137.129.161:8000/image_captioning',
     },
     '/product_recognition': {
-      proxy: 'http://127.0.0.1:8000/product_recognition',
+      proxy: 'http://112.137.129.161:8000/product_recognition',
     },
     '/distance_estimate': {
-      proxy: 'http://127.0.0.1:8000/distance_estimate',
-    }
+      proxy: 'http://112.137.129.161:8000/distance_estimate',
+    },
+    '/download_audio': {
+      proxy: 'http://112.137.129.161:8000/download_audio',
+    },
+    '/download_audio?audiopath=**': {
+      proxy: 'http://112.137.129.161:8000/download_audio?audiopath=**',
+    },
+    '/currency_detection': {
+      proxy: 'http://112.137.129.161:8000/currency_detection',
+    },
   }
 })
