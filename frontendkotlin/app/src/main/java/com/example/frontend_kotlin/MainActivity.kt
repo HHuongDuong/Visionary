@@ -3,6 +3,7 @@ package com.example.frontend_kotlin
 import android.Manifest
 import android.content.pm.PackageManager
 import android.media.MediaActionSound
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
@@ -25,6 +26,7 @@ import com.google.android.material.button.MaterialButton
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
+import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 import java.util.Locale
@@ -203,11 +205,34 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 }
 
                 val jsonResponse = response.body?.string()
-                Log.d("MainActivity", "JSON Response: $jsonResponse")
+                if (jsonResponse != null) {
+                    Log.d("MainActivity", "JSON Response: $jsonResponse")
 
-                // Handle the JSON response and extract the audio path if available
-                // This part depends on the structure of your JSON response
+                    val audioPath = JSONObject(jsonResponse).optString("audio_path")
+                    if (audioPath.isNotEmpty()) {
+                        val encodedAudioPath = Uri.encode(audioPath)
+                        val audioFileUrl = "http://112.137.129.161:8000/download_audio?audio_path=$encodedAudioPath"
+                        Log.d("MainActivity", "Audio File URL: $audioFileUrl")
+                        playAudioFromUrl(audioFileUrl)
+                    }
+                } else {
+                    Log.e("MainActivity", "Response body is null")
+                }
             }
         })
+    }
+
+    private fun playAudioFromUrl(audioUrl: String) {
+        val mediaPlayer = MediaPlayer().apply {
+            setDataSource(audioUrl)
+            setOnPreparedListener { start() }
+            setOnCompletionListener { release() }
+            setOnErrorListener { mp, what, extra ->
+                Log.e("MainActivity", "Error playing audio: what=$what, extra=$extra")
+                mp.release()
+                true
+            }
+            prepareAsync()
+        }
     }
 }
