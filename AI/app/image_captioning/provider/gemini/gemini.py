@@ -34,17 +34,16 @@ json_schema = {
 
 def gen_img_description(file_url, mime_type):
     try:
-        # Kiểm tra nếu file_url là một đường dẫn cục bộ
         if os.path.isfile(file_url):
-            local_file_path = file_url  # Sử dụng đường dẫn cục bộ trực tiếp
+            local_file_path = file_url 
         else:
             response = requests.get(file_url)
             response.raise_for_status()
 
-            # Tạo tên tệp duy nhất để tránh xung đột
+            
             file_name = os.path.basename(file_url)
-            local_file_path = os.path.join("temp_images", file_name) # Lưu vào thư mục temp_images
-            os.makedirs("temp_images", exist_ok=True) # Tạo thư mục nếu chưa tồn tại
+            local_file_path = os.path.join("temp_images", file_name) 
+            os.makedirs("temp_images", exist_ok=True) 
 
             with open(local_file_path, 'wb') as f:
                 data = response.content
@@ -56,7 +55,7 @@ def gen_img_description(file_url, mime_type):
             print(f"Video file state: {img_file.state.name}")
 
         if img_file.state.name == "FAILED":
-            print(f"Error uploading video: {img_file.state.details}") # In ra chi tiết lỗi
+            print(f"Error uploading video: {img_file.state.details}") 
             raise ValueError(img_file.state.name)
 
         prompt = f"Follow JSON schema.<JSONSchema>{json.dumps(json_schema, ensure_ascii=False, indent=2)}</JSONSchema>"
@@ -74,7 +73,7 @@ def gen_img_description(file_url, mime_type):
         return None
 
 def main():
-    image_path = r"C:\Users\admin\Desktop\VisionMate\AI\app\image_captioning\provider\gemini\055e084c-be30-4774-b2c7-3f780b39ba45.jpg"
+    image_path = r"C:\Users\admin\Desktop\VisionMate\AI\app\image_captioning\provider\gemini\tay.png"
     mime_type, _ = mimetypes.guess_type(image_path)
     print(mime_type)
     result = gen_img_description(image_path, mime_type)
