@@ -17,15 +17,16 @@ from text_to_speech.provider.Deepgram.deepgram import text_2_speech, text_2_spee
 from product_recognition.pipeline import BarcodeProcessor
 from deepface import DeepFace
 import time
-from image_captioning.provider.gpt4.gpt4 import OpenAIProvider
+from image_captioning.provider.gemini.gemini import gen_img_description
 import asyncio
 from distance_estimate.stream_video_distance import calculate_focal_length_stream, calculate_distance_from_image
 from face_detection.detectMongo import find_existing_face, process_frame, save_embedding_to_db, connect_mongodb, calculate_focal_length
+import json
+import mimetypes
 start = time.time()
 ocr = OcrRecognition()
 currency_detection_model_path = "./currency_detection/model/best8.onnx"
 currency_detector = YOLOv8(currency_detection_model_path, conf_thres=0.2, iou_thres=0.3)
-gpt4_captioning = OpenAIProvider(config.OPEN_API_KEY)
 barcode_processor = BarcodeProcessor()
 distance_estimation_model_path = "./distance_estimate/models/yolov8m.onnx"
 print(f"All Models loaded in {time.time() - start:.2f} seconds", file=sys.stderr)
@@ -90,26 +91,49 @@ async def currency_detection(file: UploadFile = File(...)):
 @app.post("/image_captioning")
 async def image_captioning(file: UploadFile = File(...)):
     try:
+        # Lưu tệp tải lên tạm thời
         with NamedTemporaryFile(delete=False) as temp:
             temp.write(file.file.read())
             temp.close()
-            base64_image = gpt4_captioning.encode_image(temp.name)
-            if not base64_image:
-                raise HTTPException(status_code=500, detail="Failed to encode image")
-            description = gpt4_captioning.frame_description_stream(base64_image)
+            print(temp.name)
+            # Xác định mime type
+            mime_type, _ = mimetypes.guess_type(file.filename)
+            print(f"MIME Type from original filename: {mime_type}")
+            
+            if not mime_type:
+                raise HTTPException(status_code=400, detail="Cannot determine the mimetype of the uploaded file.")
+
+            # Gọi hàm gen_img_description từ gemini.py
+            description_json = gen_img_description(temp.name, mime_type)
+            if not description_json:
+                raise HTTPException(status_code=500, detail="Failed to generate image description")
+
+            # Parse JSON response
+            try:
+                description_data = json.loads(description_json)
+                description = description_data.get("description")
+            except json.JSONDecodeError as e:
+                print(f"Error decoding JSON: {e}")
+                raise HTTPException(status_code=500, detail="Invalid JSON response from image captioning service")
+
+            if not description:
+                raise HTTPException(status_code=500, detail="Description not found in JSON response")
+
+            # Tạo tệp âm thanh
             audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
-            # deepgram_text_to_speech(api_key= config.DEEPGRAM_API_KEY, 
-            #                         text = description , output_path=audio_path)
             asyncio.gather(
                 text_2_speech_async(text=description, output_path=audio_path)
             )
+
             return JSONResponse(content={
                 "description": description,
                 "audio_path": audio_path
             })
+
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail="Internal server error")
+
     
 
 @app.post("/product_recognition")
