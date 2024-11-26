@@ -39,16 +39,20 @@ def connect_mongodb():
         print(f"Error connecting to MongoDB: {e}")
         return None
 
-def save_embedding_to_db(collection, name, embedding):
-    """Save embedding to MongoDB."""
+def save_embedding_to_db(collection, name, embedding, hometown, relationship, date_of_birth):
+    """Save embedding with additional details to MongoDB."""
     try:
         collection.insert_one({
             "name": name,
-            "embedding": embedding.tolist()  
+            "embedding": embedding.tolist(),
+            "hometown": hometown,
+            "relationship": relationship,
+            "date_of_birth": date_of_birth
         })
-        print(f"Saved {name} to the database.")
+        print(f"Saved {name} to the database with additional details.")
     except Exception as e:
-        print(f"Error saving embedding to MongoDB: {e}")
+        print(f"Error saving to MongoDB: {e}")
+
 
 def find_existing_face(collection, embedding):
     """Find existing faces in the database and return the one with the highest similarity."""
