@@ -1,13 +1,16 @@
 import base64
-from openai import OpenAI
-from typing import Optional
+import openai
 import logging
+from typing import Optional
+import os
+from dotenv import load_dotenv
 
-
+# Load .env file to access environment variables
+load_dotenv()
+print(f"API Key: {os.getenv('OPEN_API_KEY')}")
 class OpenAIProvider:
-
-    def __init__(self, api_key: str):
-        self.openai = OpenAI(api_key=api_key)
+    def __init__(self):
+        openai.api_key = os.getenv('OPEN_API_KEY')  # Get API key from .env
         self.logger = logging.getLogger(__name__)
 
     @staticmethod
@@ -21,13 +24,12 @@ class OpenAIProvider:
 
     def frame_description(self, base64_image: str) -> Optional[str]:
         try:
-            response = self.openai.chat.completions.create(
-                model="gpt-4-vision-preview",  # Note: Changed from gpt-4o-mini to correct model name
+            response = openai.ChatCompletion.create(
+                model="gpt-4o-mini",
                 messages=[
                     {
                         "role": "system",
-                        "content": """Bạn đang hỗ trợ người khiếm thị. Cung cấp mô tả ngắn gọn, súc tích về hình ảnh trong một câu, bao gồm các chi tiết chính. Trả lời một cách tóm tắt trong vài câu và đừng quá 60 từ cũng như ngắt câu giữa chừng"""
-
+                        "content": """Bạn đang hỗ trợ người khiếm thị. Cung cấp mô tả ngắn gọn, súc tích về hình ảnh trong một câu, bao gồm các chi tiết chính. Trả lời một cách tóm tắt."""
                     },
                     {
                         "role": "user",
@@ -45,10 +47,9 @@ class OpenAIProvider:
                         ]
                     }
                 ],
-                max_tokens=60
+                max_tokens=200
             )
 
-            # Extract the description from the response
             if response.choices and response.choices[0].message:
                 return response.choices[0].message.content
             return None
@@ -58,24 +59,14 @@ class OpenAIProvider:
             return None
 
     def frame_description_stream(self, base64_image: str) -> str:
-        """
-        Get streaming description for an image using GPT-4 Vision
-
-        Args:
-            base64_image (str): Base64 encoded image
-
-        Returns:
-            str: Full image description
-        """
         try:
             full_response = ""
-            response = self.openai.chat.completions.create(
+            response = openai.ChatCompletion.create(
                 model="gpt-4o-mini",
                 messages=[
                     {
                         "role": "system",
-                        "content": """Bạn đang hỗ trợ người khiếm thị. Cung cấp mô tả ngắn gọn, súc tích về hình ảnh trong một câu, bao gồm các chi tiết chính. Trả lời một cách tóm tắt trong vài câu và đừng quá 60 từ cũng như ngắt câu giữa chừng"""
-
+                        "content": """Bạn đang hỗ trợ người khiếm thị. Cung cấp mô tả ngắn gọn, súc tích về hình ảnh trong một câu, bao gồm các chi tiết chính. Trả lời một cách tóm tắt."""
                     },
                     {
                         "role": "user",
@@ -93,7 +84,7 @@ class OpenAIProvider:
                         ]
                     }
                 ],
-                max_tokens=50,
+                max_tokens=200,
                 stream=True
             )
 
@@ -112,12 +103,12 @@ class OpenAIProvider:
 
 
 def main():
-    import os
-    from config import config
+    import logging
 
     logging.basicConfig(level=logging.INFO)
 
-    provider = OpenAIProvider(config.OPEN_API_KEY)
+    # Khởi tạo provider mà không cần truyền API key trực tiếp
+    provider = OpenAIProvider()
 
     image_path = 'img.png'
 

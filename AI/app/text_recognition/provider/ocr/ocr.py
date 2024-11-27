@@ -1,72 +1,61 @@
-from typing import Union, Optional
-from pathlib import Path
+import os
+import mimetypes
 import logging
 from dataclasses import dataclass
-from typing import Literal
-import numpy as np
-import pytesseract
-from PIL import Image
+import google.generativeai as genai
 
-SupportedModesType = Literal["ocr", "easyocr", "trocr", "gpt4", "claude"]
-SupportedLanguages = Literal["eng", "fra", "deu", "spa", "vie"]
-
-SupportedModes = ("ocr", "easyocr", "trocr", "gpt4")
-
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 @dataclass
 class RecognitionResult:
     text: str
-    confidence: Optional[float] = None
-    processing_time: Optional[float] = None
 
 class OcrRecognition:
-    def __init__(self) -> None:
-        logger.info("Initializing OCR Recognition")
+    def __init__(self):
+        self.generation_config = {
+            "temperature": 0.5,
+            "top_p": 0.95,
+            "top_k": 40,
+            "max_output_tokens": 8192
+        }
+        self.model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash-002", 
+            generation_config=self.generation_config
+        )
 
-    def recognize_text(self,
-                       image_source: Union[str, Path, Image.Image, np.ndarray],
-                       language: SupportedLanguages = "vie") -> RecognitionResult:
+    def recognize_text(self, file_path: str) -> RecognitionResult:
         try:
-            image = self._prepare_image(image_source)
-            return self._recognize_with_ocr(image, language)
+            mime_type, _ = mimetypes.guess_type(file_path)
+            logger.info(f"Detected MIME type: {mime_type}")
+
+            if not mime_type or not mime_type.startswith("image/"):
+                raise ValueError(f"Invalid MIME type: {mime_type}. Only image files are supported.")
+
+            img_file = genai.upload_file(path=file_path, mime_type=mime_type)
+            while img_file.state.name == "PROCESSING":
+                img_file = genai.get_file(img_file.name)
+                logger.info(f"Image processing state: {img_file.state.name}")
+
+            if img_file.state.name == "FAILED":
+                logger.error(f"Error uploading image: {img_file.state.details}")
+                raise ValueError("Failed to process image.")
+
+            prompt = (
+                "Trích xuất nội dung văn bản từ ảnh tài liệu. "
+                "Chỉ trả lại văn bản chính xác như xuất hiện trong tài liệu, không thêm bất kỳ thông tin nào khác."
+            )
+
+            response = self.model.generate_content(
+                [img_file, prompt],
+                generation_config=genai.GenerationConfig(response_mime_type="application/json"),
+                request_options={"timeout": 5000}
+            )
+
+            # Xóa tệp sau khi xử lý
+            img_file.delete()
+
+            return RecognitionResult(text=response.text.strip())
+
         except Exception as e:
-            logger.error(f"Error during text recognition: {str(e)}")
+            logger.error(f"Lỗi trong quá trình nhận dạng văn bản: {str(e)}")
             raise
-
-    def _prepare_image(self, image_source: Union[str, Path, Image.Image, np.ndarray]) -> Image.Image:
-        if isinstance(image_source, (str, Path)):
-            return Image.open(image_source)
-        elif isinstance(image_source, np.ndarray):
-            return Image.fromarray(image_source)
-        elif isinstance(image_source, Image.Image):
-            return image_source
-        else:
-            raise ValueError(f"Unsupported image source type: {type(image_source)}")
-
-    def _recognize_with_ocr(self, image: Image.Image, language: SupportedLanguages) -> RecognitionResult:
-        try:
-            data = pytesseract.image_to_data(image, lang=language, output_type=pytesseract.Output.DICT)
-            text = " ".join([word for word in data['text'] if word.strip()])
-
-            conf_values = [conf for conf in data['conf'] if conf != -1]
-            avg_confidence = sum(conf_values) / len(conf_values) if conf_values else None
-
-            return RecognitionResult(text=text, confidence=avg_confidence)
-        except Exception as e:
-            logger.error(f"OCR processing failed: {str(e)}")
-            raise
-
-    @staticmethod
-    def get_available_languages() -> list[SupportedLanguages]:
-        return ["eng", "fra", "deu", "spa", "vie"]
-
-def main():
-    ocr = OcrRecognition()
-    result = ocr.recognize_text("/home/xuananle/Documents/Learn/HMI/VisionMate/AI/image.png", language="vie")
-    print(f"Recognized Text: {result.text}")
-    print(f"Confidence: {result.confidence}")
-
-if __name__ == "__main__":
-    main()
