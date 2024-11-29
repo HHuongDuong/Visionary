@@ -1,13 +1,14 @@
 import requests
 import os
 from dotenv import load_dotenv
+from config import config
 
 load_dotenv()
 
 def text_to_speech( text, language='vi-vn', format='mp3', speed='0', pitch='0'):
     url = 'https://api.voicerss.org/'
     params = {
-        'key': os.getenv("Voice_RSS") ,  # API key,
+        'key': config.VOICE_RSS,
         'hl': language,  # Ngôn ngữ: vi-vn (Tiếng Việt), en-us (Tiếng Anh), v.v.
         'src': text,     # Văn bản cần chuyển đổi
         'r': speed,      # Tốc độ: -10 đến 10

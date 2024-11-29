@@ -169,11 +169,13 @@ def text_to_speech(api_key=None, text=None, output_path = None):
 
 async def text_to_speech_async(api_key=None, text=None, output_path = None):
     await asyncio.to_thread(text_to_speech, api_key, text, output_path)
-    
+
+from config import config
+
 def text_2_speech( text, language='vi-vn', format='mp3', speed='0', pitch='0', output_path=None):
     url = 'https://api.voicerss.org/'
     params = {
-        'key': os.getenv("Voice_RSS") ,  # API key,
+        'key': config.VOICE_RSS,  # API key,
         'hl': language,  # Ngôn ngữ: vi-vn (Tiếng Việt), en-us (Tiếng Anh), v.v.
         'src': text,     # Văn bản cần chuyển đổi
         'r': speed,      # Tốc độ: -10 đến 10

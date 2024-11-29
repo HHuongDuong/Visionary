@@ -13,5 +13,6 @@ class Config(object):
         self.DB_COLLECTION = os.getenv('DB_COLLECTION')
         self.DEEPGRAM_API_KEY = os.getenv('DEEPGRAM_API_KEY')
         self.OPEN_API_KEY = os.getenv('OPEN_API_KEY')
+        self.VOICE_RSS = os.getenv('Voice_RSS')
 
 config = Config()

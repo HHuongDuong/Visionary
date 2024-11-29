@@ -1,9 +1,10 @@
 import cv2
+from pathlib import Path
 import numpy as np
 from .yolov8.YOLOv8 import YOLOv8
 from .yolov8.utils import class_names  
 
-model_path = r"/home/quanng/my_project/TTNM/VisionMate/AI/app/distance_estimate/models/yolov8m.onnx"
+model_path = Path('distance_estimate/models/yolov8m.onnx').absolute().__str__()
 yolov8_detector = YOLOv8(model_path, conf_thres=0.2, iou_thres=0.3)
 
 image_path = "dis.jpg"  
@@ -128,7 +129,7 @@ def calculate_distance_from_image(image_data):
 
         results.append({
             "class": class_name,
-            "distance": inches,
+            "distance": inches.item(),
             "position": object_position_world.tolist()
         })
 
