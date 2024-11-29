@@ -3,14 +3,15 @@ package com.example.frontend_kotlin
 import android.Manifest
 import android.content.pm.PackageManager
 import android.media.MediaActionSound
-import android.media.MediaPlayer
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
@@ -22,6 +23,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.example.frontend_kotlin.utils.Utils
 import com.google.android.material.button.MaterialButton
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -39,15 +41,22 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private lateinit var endpoints: Map<String, String>
     private lateinit var tts: TextToSpeech
 
+    companion object {
+        private const val REQUEST_CODE_PERMISSIONS = 10
+        private const val BASE_URL = "http://192.168.2.8:8000"
+        private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
         previewView = findViewById(R.id.camera_preview)
-
         tts = TextToSpeech(this) { status ->
             if (status != TextToSpeech.ERROR) {
-                tts.language = tts.availableLanguages.firstOrNull { it.language == "vi" }
+                tts.language = Locale("vi", "VN")
+            } else {
+                Log.e("MainActivity", "TextToSpeech initialization failed")
             }
         }
 
@@ -74,7 +83,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         val firstButton: MaterialButton = findViewById(R.id.text_button)
         firstButton.performClick()
-
     }
 
     override fun onInit(status: Int) {
@@ -103,6 +111,20 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         )
     }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_CODE_PERMISSIONS) {
+            if (allPermissionsGranted()) {
+                startCamera()
+            } else {
+                Toast.makeText(this, "Permissions not granted", Toast.LENGTH_SHORT).show()
+                finish()
+            }
+        }
+    }
+
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
         cameraProviderFuture.addListener({
@@ -117,14 +139,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture)
             } catch (exc: Exception) {
                 Log.e("MainActivity", "Use case binding failed", exc)
+                Toast.makeText(this, "Camera initialization failed", Toast.LENGTH_SHORT).show()
             }
         }, ContextCompat.getMainExecutor(this))
     }
 
-    companion object {
-        private const val REQUEST_CODE_PERMISSIONS = 10
-        private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
-    }
 
     fun onMenuClick(view: View) {
         Toast.makeText(this, "Menu clicked", Toast.LENGTH_SHORT).show()
@@ -134,7 +153,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         Toast.makeText(this, "Question mark clicked", Toast.LENGTH_SHORT).show()
     }
 
-
     fun onButtonClick(view: View) {
         if (view is MaterialButton) {
             selectedButton?.iconTint = ContextCompat.getColorStateList(this, R.color.primary)
@@ -142,15 +160,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             selectedButton = view
             selectedButtonText = view.contentDescription.toString()
             Log.d("MainActivity", "Button clicked: $selectedButtonText")
-
             tts.speak(selectedButtonText, TextToSpeech.QUEUE_FLUSH, null, null)
         }
     }
 
     fun onCaptureClick(view: View) {
+
         val photoFile = File(externalMediaDirs.firstOrNull(), "${System.currentTimeMillis()}.jpg")
         val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
-        imageCapture.takePicture(
+
+        imageCapture.takePicture( 
             outputOptions,
             ContextCompat.getMainExecutor(this),
             object : ImageCapture.OnImageSavedCallback {
@@ -158,6 +177,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     val savedUri = output.savedUri ?: Uri.fromFile(photoFile)
                     val msg = "Photo capture succeeded: $savedUri"
                     Log.d("MainActivity", msg)
+                    tts.speak("Chụp ảnh thành công", TextToSpeech.QUEUE_FLUSH, null, null)
                     playCaptureSound()
                     sendImageToEndpoint(photoFile)
                 }
@@ -176,63 +196,58 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private fun sendImageToEndpoint(photoFile: File) {
         val endpoint = endpoints[selectedButtonText]
+        Log.d("sendImageToEndpoint", "Endpoint: $endpoint")
         if (endpoint == null) {
-            Log.e("MainActivity", "No endpoint found for selected button: $selectedButtonText")
             return
         }
 
-        val client = OkHttpClient()
+        val client = OkHttpClient.Builder()
+            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .build();
+        val mediaType = "image/png".toMediaTypeOrNull()
+
         val requestBody = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
-            .addFormDataPart("file", photoFile.name, photoFile.asRequestBody("image/jpeg".toMediaTypeOrNull()))
+            .addFormDataPart("file", photoFile.name, photoFile.asRequestBody(mediaType))
             .build()
 
         val request = Request.Builder()
-            .url("http://112.137.129.161:8000$endpoint")
+            .url("$BASE_URL/document_recognition")
             .post(requestBody)
             .addHeader("Accept", "application/json")
+            .addHeader("Content-Type", "multipart/form-data")
             .build()
+
 
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 Log.e("MainActivity", "Error sending image to endpoint", e)
             }
 
+            @RequiresApi(Build.VERSION_CODES.O)
             override fun onResponse(call: Call, response: Response) {
                 if (!response.isSuccessful) {
-                    Log.e("MainActivity", "HTTP error! status: $response")
+                    Log.e("MainActivity", "HTTP error! status: ${response.code}")
                     return
+                } else {
+                    Log.d("MainActivity", "HTTP success! status: ${response.code}")
                 }
-
-                val jsonResponse = response.body?.string()
-                if (jsonResponse != null) {
-                    Log.d("MainActivity", "JSON Response: $jsonResponse")
-
-                    val audioPath = JSONObject(jsonResponse).optString("audio_path")
+                response.body?.let {
+                    val jsonResponse = it.string()
+                    val audioPath = JSONObject(jsonResponse).optString("audio_path");
                     if (audioPath.isNotEmpty()) {
                         val encodedAudioPath = Uri.encode(audioPath)
-                        val audioFileUrl = "http://112.137.129.161:8000/download_audio?audio_path=$encodedAudioPath"
+                        val audioFileUrl = "$BASE_URL/download_audio?audio_path=$encodedAudioPath"
                         Log.d("MainActivity", "Audio File URL: $audioFileUrl")
-                        playAudioFromUrl(audioFileUrl)
+                        Utils.downloadAndPlayAudioFile(this@MainActivity, audioFileUrl)
                     }
-                } else {
+                } ?: run {
                     Log.e("MainActivity", "Response body is null")
                 }
             }
         })
     }
 
-    private fun playAudioFromUrl(audioUrl: String) {
-        val mediaPlayer = MediaPlayer().apply {
-            setDataSource(audioUrl)
-            setOnPreparedListener { start() }
-            setOnCompletionListener { release() }
-            setOnErrorListener { mp, what, extra ->
-                Log.e("MainActivity", "Error playing audio: what=$what, extra=$extra")
-                mp.release()
-                true
-            }
-            prepareAsync()
-        }
-    }
 }

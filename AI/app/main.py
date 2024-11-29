@@ -41,6 +41,7 @@ async def read_root():
 @app.post("/document_recognition")
 async def document_recognition(file: UploadFile = File(...)):
     try:
+        start = time.time()
         mime_type, _ = mimetypes.guess_type(file.filename)
         print(f"MIME Type from original filename: {mime_type}")
 
@@ -59,14 +60,11 @@ async def document_recognition(file: UploadFile = File(...)):
 
         audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
         pdf_path = NamedTemporaryFile(delete=False, suffix=".pdf").name
-
         asyncio.gather(
-                # deepgram_text_to_speech_async(api_key= config.DEEPGRAM_API_KEY, 
-                #                         text = result , output_path=audio_path),
             text_2_speech_async(text=result, output_path=audio_path),
             utils.create_pdf_async(result, pdf_path)
         )
-
+        print("The Audio Path is ", audio_path)
         return JSONResponse(content={
             "text": result,
             "audio_path": audio_path,
@@ -187,7 +185,10 @@ async def calculate_distance(file: UploadFile = File(...)):
     if results is None:
         raise HTTPException(status_code=400, detail="Không thể xử lý ảnh.")
 
+    print(results)
+    
     return JSONResponse(content=results)
+
 
 collection = connect_mongodb()
 if collection is None:
@@ -268,16 +269,17 @@ async def recognize(file: UploadFile = File(...)):
                 relationship = matched_face.get("relationship", "Unknown")
                 date_of_birth = matched_face.get("date_of_birth", "Unknown")
 
+
                 return {
                     "message": "Recognition successful",
                     "name": recognized_name,
                     "matched_name": matched_name,
-                    "similarity_score": similarity_score,
+                    "similarity_score": similarity_score.item(),
                     "age": data.get('Age'),
                     "gender": data.get('Gender'),
                     "emotion": data.get('Emotion'),
                     "race": data.get('Race'),
-                    "distance": data.get('Distance'),
+                    "distance": data.get('Distance').item(),
                     "hometown": hometown,
                     "relationship": relationship,
                     "date_of_birth": date_of_birth
