@@ -43,7 +43,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 10
-        private const val BASE_URL = "http://192.168.2.8:8000"
+        private const val BASE_URL = "http://112.137.129.161:8000"
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
     }
 
@@ -214,7 +214,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             .build()
 
         val request = Request.Builder()
-            .url("$BASE_URL/document_recognition")
+            .url("$BASE_URL$endpoint")
             .post(requestBody)
             .addHeader("Accept", "application/json")
             .addHeader("Content-Type", "multipart/form-data")
@@ -234,18 +234,32 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 } else {
                     Log.d("MainActivity", "HTTP success! status: ${response.code}")
                 }
-                response.body?.let {
-                    val jsonResponse = it.string()
-                    val audioPath = JSONObject(jsonResponse).optString("audio_path");
-                    if (audioPath.isNotEmpty()) {
-                        val encodedAudioPath = Uri.encode(audioPath)
-                        val audioFileUrl = "$BASE_URL/download_audio?audio_path=$encodedAudioPath"
-                        Log.d("MainActivity", "Audio File URL: $audioFileUrl")
-                        Utils.downloadAndPlayAudioFile(this@MainActivity, audioFileUrl)
-                    }
-                } ?: run {
-                    Log.e("MainActivity", "Response body is null")
+
+                val responseBody = response.body?.string()
+                if (responseBody == null) {
+                    Log.e("MainActivity", "Empty response body")
+                    return
                 }
+
+                Log.d("MainActivity", "Response body: $responseBody")
+
+                val jsonObject = JSONObject(responseBody)
+                val text: String? = jsonObject.optString("text", null)
+                val totalMoney: String? = jsonObject.optString("total_money", null)
+                val description: String? = jsonObject.optString("description", null)
+                // Add more here
+
+                val responseText = when (selectedButtonText) {
+                    getString(R.string.text) -> text
+                    getString(R.string.money) -> totalMoney
+                    getString(R.string.item) -> description
+                    getString(R.string.product) -> TODO()
+                    getString(R.string.distance) -> TODO()
+                    getString(R.string.face) -> TODO()
+                    else -> "Không thể xử lý yêu cầu"
+                }
+                Log.d("MainActivity", "Response text: $responseText")
+                tts.speak(responseText, TextToSpeech.QUEUE_FLUSH, null, null)
             }
         })
     }
