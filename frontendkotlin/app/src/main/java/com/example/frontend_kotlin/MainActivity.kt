@@ -1,6 +1,7 @@
 package com.example.frontend_kotlin
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaActionSound
 import android.net.Uri
@@ -24,6 +25,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.frontend_kotlin.utils.Utils
+import android.speech.tts.UtteranceProgressListener
 import com.google.android.material.button.MaterialButton
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -39,12 +41,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private var selectedButtonText: String? = null
     private lateinit var imageCapture: ImageCapture
     private lateinit var endpoints: Map<String, String>
-    private lateinit var tts: TextToSpeech
 
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 10
         private const val BASE_URL = "http://112.137.129.161:8000"
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
+
+        lateinit var tts: TextToSpeech
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,9 +55,28 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
         previewView = findViewById(R.id.camera_preview)
+
         tts = TextToSpeech(this) { status ->
             if (status != TextToSpeech.ERROR) {
                 tts.language = Locale("vi", "VN")
+                tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                    override fun onStart(utteranceId: String?) {
+                        Log.d("MainActivity", "TTS started")
+                    }
+
+                    override fun onDone(utteranceId: String?) {
+                        runOnUiThread {
+                            val intent = Intent(this@MainActivity, MainActivity::class.java)
+                            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                            startActivity(intent)
+                            finish()
+                        }
+                    }
+
+                    override fun onError(utteranceId: String?) {
+                        Log.e("MainActivity", "TTS error")
+                    }
+                })
             } else {
                 Log.e("MainActivity", "TextToSpeech initialization failed")
             }
@@ -94,10 +116,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     override fun onDestroy() {
-        if (this::tts.isInitialized) {
-            tts.stop()
-            tts.shutdown()
-        }
+        tts.stop()
+        tts.shutdown()
         super.onDestroy()
     }
 
@@ -169,7 +189,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         val photoFile = File(externalMediaDirs.firstOrNull(), "${System.currentTimeMillis()}.jpg")
         val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
 
-        imageCapture.takePicture( 
+        imageCapture.takePicture(
             outputOptions,
             ContextCompat.getMainExecutor(this),
             object : ImageCapture.OnImageSavedCallback {
@@ -259,7 +279,15 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     else -> "Không thể xử lý yêu cầu"
                 }
                 Log.d("MainActivity", "Response text: $responseText")
-                tts.speak(responseText, TextToSpeech.QUEUE_FLUSH, null, null)
+                tts.speak(responseText, TextToSpeech.QUEUE_FLUSH, null, "utteranceId")
+
+                // document recognition activity screen
+                if (selectedButtonText == getString(R.string.text)) {
+                    val intent = Intent(this@MainActivity, DocumentActivity::class.java).apply {
+                        putExtra("responseText", responseText)
+                    }
+                    startActivity(intent)
+                }
             }
         })
     }
