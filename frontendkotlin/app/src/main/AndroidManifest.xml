@@ -31,6 +31,10 @@
         <activity
             android:name=".DocumentActivity">
         </activity>
+
+        <activity
+            android:name=".AddFaceActivity">
+        </activity>
     </application>
 
 </manifest>

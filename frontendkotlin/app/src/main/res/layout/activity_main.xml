@@ -150,6 +150,18 @@
                 app:iconGravity="textStart"
                 android:gravity="center"
                 android:onClick="onButtonClick" />
+
+            <com.google.android.material.button.MaterialButton
+                style="?android:attr/buttonBarButtonStyle"
+                app:icon="@drawable/baseline_add_face_24"
+                app:iconSize="36dp"
+                app:iconTint="@color/primary"
+                android:layout_width="64dp"
+                android:layout_height="wrap_content"
+                android:contentDescription="@string/add_face"
+                app:iconGravity="textStart"
+                android:gravity="center"
+                android:onClick="onButtonClick" />
         </LinearLayout>
     </HorizontalScrollView>
 

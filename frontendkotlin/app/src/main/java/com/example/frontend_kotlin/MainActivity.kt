@@ -1,6 +1,7 @@
 package com.example.frontend_kotlin
 
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaActionSound
@@ -26,10 +27,13 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.frontend_kotlin.utils.Utils
 import android.speech.tts.UtteranceProgressListener
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import com.google.android.material.button.MaterialButton
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
@@ -41,6 +45,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private var selectedButtonText: String? = null
     private lateinit var imageCapture: ImageCapture
     private lateinit var endpoints: Map<String, String>
+    private lateinit var addFaceActivityResultLauncher: ActivityResultLauncher<Intent>
 
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 10
@@ -88,7 +93,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             getString(R.string.item) to "/image_captioning",
             getString(R.string.product) to "/product_recognition",
             getString(R.string.distance) to "/distance_estimate",
-            getString(R.string.face) to "/face_detection/recognize"
+            getString(R.string.face) to "/face_detection/recognize",
+            getString(R.string.add_face) to "/face_detection/register"
         )
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
@@ -105,6 +111,27 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         val firstButton: MaterialButton = findViewById(R.id.text_button)
         firstButton.performClick()
+
+        addFaceActivityResultLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            Log.d("MainActivity", "addFaceActivityResultLauncher")
+            if (result.resultCode == RESULT_OK) {
+                val data = result.data
+                val name = data?.getStringExtra("name")
+                val hometown = data?.getStringExtra("hometown")
+                val relationship = data?.getStringExtra("relationship")
+                val dateOfBirth = data?.getStringExtra("date_of_birth")
+                val photoFilePath = data?.getStringExtra("photoFilePath")
+
+                Log.d("MainActivity", "name: $name, hometown: $hometown, relationship: $relationship, dateOfBirth: $dateOfBirth, photoFilePath: $photoFilePath")
+
+                if (name != null && hometown != null && relationship != null && dateOfBirth != null && photoFilePath != null) {
+                    val photoFile = File(photoFilePath)
+                    sendImageToEndpoint(photoFile, name, hometown, relationship, dateOfBirth)
+                }
+            }
+        }
     }
 
     override fun onInit(status: Int) {
@@ -185,7 +212,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     fun onCaptureClick(view: View) {
-
         val photoFile = File(externalMediaDirs.firstOrNull(), "${System.currentTimeMillis()}.jpg")
         val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
 
@@ -199,7 +225,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     Log.d("MainActivity", msg)
                     tts.speak("Chụp ảnh thành công", TextToSpeech.QUEUE_FLUSH, null, null)
                     playCaptureSound()
-                    sendImageToEndpoint(photoFile)
+
+                    if (selectedButtonText == getString(R.string.add_face)) {
+                        Log.d("MainActivity", "Add face activity")
+                        val intent = Intent(this@MainActivity, AddFaceActivity::class.java).apply {
+                            putExtra("photoFilePath", photoFile.absolutePath)
+                        }
+                        addFaceActivityResultLauncher.launch(intent)
+                    } else {
+                        sendImageToEndpoint(photoFile)
+                    }
                 }
 
                 override fun onError(exception: ImageCaptureException) {
@@ -292,4 +327,57 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         })
     }
 
+    private fun sendImageToEndpoint(photoFile: File, name: String, hometown: String, relationship: String, dateOfBirth: String) {
+        val endpoint = endpoints[selectedButtonText]
+        Log.d("sendImageToEndpoint", "Endpoint: $endpoint")
+        if (endpoint == null) {
+            return
+        }
+
+        val client = OkHttpClient.Builder()
+            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+        val mediaType = "image/png".toMediaTypeOrNull()
+
+        val requestBody = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart("file", photoFile.name, photoFile.asRequestBody(mediaType))
+            .build()
+
+        val url = "$BASE_URL$endpoint?name=$name&hometown=$hometown&relationship=$relationship&date_of_birth=$dateOfBirth"
+
+        val request = Request.Builder()
+            .url(url)
+            .post(requestBody)
+            .addHeader("Accept", "application/json")
+            .addHeader("Content-Type", "multipart/form-data")
+            .build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.e("MainActivity", "Error sending image to endpoint", e)
+            }
+
+            @RequiresApi(Build.VERSION_CODES.O)
+            override fun onResponse(call: Call, response: Response) {
+                if (!response.isSuccessful) {
+                    Log.e("MainActivity", "HTTP error! status: ${response.code}")
+                    return
+                } else {
+                    Log.d("MainActivity", "HTTP success! status: ${response.code}")
+                }
+
+                val responseBody = response.body?.string()
+                if (responseBody == null) {
+                    Log.e("MainActivity", "Empty response body")
+                    return
+                }
+
+                Log.d("MainActivity", "Response body: $responseBody")
+                tts.speak("Đã thêm khuôn mặt thành công", TextToSpeech.QUEUE_FLUSH, null, null)
+            }
+        })
+    }
 }

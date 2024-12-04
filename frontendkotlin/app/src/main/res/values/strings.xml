@@ -10,4 +10,10 @@
     <string name="face">Khuôn mặt</string>
     <string name="screenshot">Chụp ảnh</string>
     <string name="return_to_menu">Trở về</string>
+    <string name="add_face">Đăng ký khuôn mặt</string>
+    <string name="DoB">Ngày sinh</string>
+    <string name="Relationship">Tình trạng hôn nhân</string>
+    <string name="hometown">Quê quán</string>
+    <string name="name">Họ và tên</string>
+    <string name="confirm">Xác nhận</string>
 </resources>
