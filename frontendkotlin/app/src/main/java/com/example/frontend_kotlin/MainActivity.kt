@@ -1,7 +1,6 @@
 package com.example.frontend_kotlin
 
 import android.Manifest
-import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaActionSound
@@ -25,7 +24,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.example.frontend_kotlin.utils.Utils
 import android.speech.tts.UtteranceProgressListener
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
@@ -33,7 +31,6 @@ import com.google.android.material.button.MaterialButton
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
@@ -45,6 +42,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private var selectedButtonText: String? = null
     private lateinit var imageCapture: ImageCapture
     private lateinit var endpoints: Map<String, String>
+    private var isUsingBackCamera = true
     private lateinit var addFaceActivityResultLauncher: ActivityResultLauncher<Intent>
 
     companion object {
@@ -180,7 +178,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 it.setSurfaceProvider(previewView.surfaceProvider)
             }
             imageCapture = ImageCapture.Builder().build()
-            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+            val cameraSelector = if (isUsingBackCamera) {
+                CameraSelector.DEFAULT_BACK_CAMERA
+            } else {
+                CameraSelector.DEFAULT_FRONT_CAMERA
+            }
             try {
                 cameraProvider.unbindAll()
                 cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture)
@@ -196,8 +198,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         Toast.makeText(this, "Menu clicked", Toast.LENGTH_SHORT).show()
     }
 
-    fun onQuestionMarkClick(view: View) {
-        Toast.makeText(this, "Question mark clicked", Toast.LENGTH_SHORT).show()
+    fun onChangeCameraClick(view: View) {
+        isUsingBackCamera = !isUsingBackCamera
+        startCamera()
     }
 
     fun onButtonClick(view: View) {
@@ -302,15 +305,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 val text: String? = jsonObject.optString("text", null)
                 val totalMoney: String? = jsonObject.optString("total_money", null)
                 val description: String? = jsonObject.optString("description", null)
-                // Add more here
 
                 val responseText = when (selectedButtonText) {
                     getString(R.string.text) -> text
                     getString(R.string.money) -> totalMoney
                     getString(R.string.item) -> description
-                    getString(R.string.product) -> TODO()
-                    getString(R.string.distance) -> TODO()
-                    getString(R.string.face) -> TODO()
+                    getString(R.string.product) -> description
+                    getString(R.string.distance) -> description
+                    getString(R.string.face) -> description
                     else -> "Không thể xử lý yêu cầu"
                 }
                 Log.d("MainActivity", "Response text: $responseText")

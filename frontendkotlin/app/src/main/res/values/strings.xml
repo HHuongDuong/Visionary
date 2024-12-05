@@ -2,12 +2,14 @@
     <string name="app_name">frontend-kotlin</string>
     <string name="menu">Bảng chọn</string>
     <string name="question_mark">Câu hỏi</string>
+
     <string name="text">Tài liệu</string>
     <string name="money">Tiền tệ</string>
     <string name="item">Vật thể</string>
     <string name="distance">Khoảng cách</string>
     <string name="product">Sản phẩm</string>
     <string name="face">Khuôn mặt</string>
+    
     <string name="screenshot">Chụp ảnh</string>
     <string name="return_to_menu">Trở về</string>
     <string name="add_face">Đăng ký khuôn mặt</string>
@@ -16,4 +18,5 @@
     <string name="hometown">Quê quán</string>
     <string name="name">Họ và tên</string>
     <string name="confirm">Xác nhận</string>
+    <string name="switch_camera">Chuyển camera</string>
 </resources>
