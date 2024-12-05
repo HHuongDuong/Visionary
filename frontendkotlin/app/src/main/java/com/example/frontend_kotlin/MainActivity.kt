@@ -24,9 +24,9 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import android.speech.tts.UtteranceProgressListener
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import com.example.frontend_kotlin.utils.TTS
 import com.google.android.material.button.MaterialButton
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -34,9 +34,8 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
-import java.util.Locale
 
-class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
+class MainActivity : AppCompatActivity() {
     private lateinit var previewView: PreviewView
     private var selectedButton: MaterialButton? = null
     private var selectedButtonText: String? = null
@@ -49,8 +48,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         private const val REQUEST_CODE_PERMISSIONS = 10
         private const val BASE_URL = "http://112.137.129.161:8000"
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
-
-        lateinit var tts: TextToSpeech
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,31 +56,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         setContentView(R.layout.activity_main)
         previewView = findViewById(R.id.camera_preview)
 
-        tts = TextToSpeech(this) { status ->
-            if (status != TextToSpeech.ERROR) {
-                tts.language = Locale("vi", "VN")
-                tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                    override fun onStart(utteranceId: String?) {
-                        Log.d("MainActivity", "TTS started")
-                    }
-
-                    override fun onDone(utteranceId: String?) {
-                        runOnUiThread {
-                            val intent = Intent(this@MainActivity, MainActivity::class.java)
-                            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-                            startActivity(intent)
-                            finish()
-                        }
-                    }
-
-                    override fun onError(utteranceId: String?) {
-                        Log.e("MainActivity", "TTS error")
-                    }
-                })
-            } else {
-                Log.e("MainActivity", "TextToSpeech initialization failed")
-            }
-        }
+        TTS.initialize(this)
 
         endpoints = mapOf(
             getString(R.string.text) to "/document_recognition",
@@ -132,17 +105,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
     }
 
-    override fun onInit(status: Int) {
-        if (status == TextToSpeech.SUCCESS) {
-            tts.language = Locale("vi", "VN")
-        } else {
-            Log.e("MainActivity", "TextToSpeech initialization failed")
-        }
-    }
-
     override fun onDestroy() {
-        tts.stop()
-        tts.shutdown()
+        Log.d("MainActivity", "onDestroy")
+        TTS.stop()
         super.onDestroy()
     }
 
@@ -210,7 +175,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             selectedButton = view
             selectedButtonText = view.contentDescription.toString()
             Log.d("MainActivity", "Button clicked: $selectedButtonText")
-            tts.speak(selectedButtonText, TextToSpeech.QUEUE_FLUSH, null, null)
+            TTS.speak(selectedButtonText.toString(), TextToSpeech.QUEUE_FLUSH, null, null)
         }
     }
 
@@ -226,7 +191,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     val savedUri = output.savedUri ?: Uri.fromFile(photoFile)
                     val msg = "Photo capture succeeded: $savedUri"
                     Log.d("MainActivity", msg)
-                    tts.speak("Chụp ảnh thành công", TextToSpeech.QUEUE_FLUSH, null, null)
+                    TTS.speak("Chụp ảnh thành công", TextToSpeech.QUEUE_FLUSH, null, null)
                     playCaptureSound()
 
                     if (selectedButtonText == getString(R.string.add_face)) {
@@ -316,7 +281,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     else -> "Không thể xử lý yêu cầu"
                 }
                 Log.d("MainActivity", "Response text: $responseText")
-                tts.speak(responseText, TextToSpeech.QUEUE_FLUSH, null, "utteranceId")
+                TTS.speak(responseText.toString(), TextToSpeech.QUEUE_FLUSH, null, "utteranceId")
 
                 // document recognition activity screen
                 if (selectedButtonText == getString(R.string.text)) {
@@ -378,7 +343,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 }
 
                 Log.d("MainActivity", "Response body: $responseBody")
-                tts.speak("Đã thêm khuôn mặt thành công", TextToSpeech.QUEUE_FLUSH, null, null)
+                TTS.speak("Đã thêm khuôn mặt thành công", TextToSpeech.QUEUE_FLUSH, null, null)
             }
         })
     }
