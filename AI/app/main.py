@@ -3,6 +3,9 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fpdf import FPDF
 import numpy as np
+import openai
+from pydantic import Json
+from sympy import content
 import utils
 from currency_detection.yolov8.YOLOv8 import YOLOv8
 from config import config
@@ -153,16 +156,11 @@ async def product_recognition(file: UploadFile = File(...)):
             if img is None:
                 raise HTTPException(status_code=400, detail="Invalid image file")
             result = barcode_processor.process_image(img)
-            audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
-            # deepgram_text_to_speech(api_key= config.DEEPGRAM_API_KEY, 
-            #                         text = result , output_path=audio_path)
-            asyncio.gather(
-                text_2_speech_async(text=result, output_path=audio_path)
-            )
-            
             print(result)
+            description = utils.format_product_information_with_openai(result)
+            print(description)
             return JSONResponse(content= {
-                "audio_path": audio_path
+                "description": description
             })
     except Exception as e:
         print(e)
@@ -184,10 +182,11 @@ async def calculate_distance(file: UploadFile = File(...)):
 
     if results is None:
         raise HTTPException(status_code=400, detail="Không thể xử lý ảnh.")
-
-    print(results)
+    results = utils.format_response_distance_estimate_with_openai(results)
     
-    return JSONResponse(content=results)
+    return JSONResponse(content={
+        "description" : results
+    })
 
 
 collection = connect_mongodb()
@@ -209,11 +208,9 @@ async def register(
     if image is None:
         raise HTTPException(status_code=400, detail="Invalid image file")
 
-    # Generate embedding
     try:
         embedding = DeepFace.represent(image, enforce_detection=False)[0]['embedding']
         
-        # Save all details to MongoDB
         save_embedding_to_db(
             collection, 
             name, 
@@ -223,12 +220,17 @@ async def register(
             date_of_birth=date_of_birth
         )
 
-        return JSONResponse(content={
+        print(JSONResponse(content={
             "message": f"Registration successful for {name}",
             "hometown": hometown,
             "relationship": relationship,
             "date_of_birth": date_of_birth
+        }))
+        
+        return JSONResponse(content= {
+            "description": f"Đã đăng kí thành công nhận diện khuôn mặt đối với {name} với thông tin như sau: Quê quán: {hometown}, Mối quan hệ với người dùng {relationship}, ngày tháng năm sinh: {date_of_birth}"
         })
+        
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail="Failed to process registration")
@@ -268,9 +270,7 @@ async def recognize(file: UploadFile = File(...)):
                 hometown = matched_face.get("hometown", "Unknown")
                 relationship = matched_face.get("relationship", "Unknown")
                 date_of_birth = matched_face.get("date_of_birth", "Unknown")
-
-
-                return {
+                result =  {
                     "message": "Recognition successful",
                     "name": recognized_name,
                     "matched_name": matched_name,
@@ -284,6 +284,10 @@ async def recognize(file: UploadFile = File(...)):
                     "relationship": relationship,
                     "date_of_birth": date_of_birth
                 }
+                print(result)
+                return JSONResponse(content= {
+                    "description": f"Nhận diện thành công. Đây là {recognized_name}, cách bạn khoảng {data.get('Distance').item()} inch, quê quán: {hometown}, mối quan hệ với bạn là {relationship}"
+                })
         else:
             raise HTTPException(status_code=404, detail="Face not recognized")
     except Exception as e:

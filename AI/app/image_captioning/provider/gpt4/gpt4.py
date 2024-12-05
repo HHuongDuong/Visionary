@@ -5,12 +5,10 @@ from typing import Optional
 import os
 from dotenv import load_dotenv
 
-# Load .env file to access environment variables
 load_dotenv()
-print(f"API Key: {os.getenv('OPEN_API_KEY')}")
 class OpenAIProvider:
     def __init__(self):
-        openai.api_key = os.getenv('OPEN_API_KEY')  # Get API key from .env
+        openai.api_key = os.getenv('OPENAI_API_KEY')  # Get API key from .env
         self.logger = logging.getLogger(__name__)
 
     @staticmethod
