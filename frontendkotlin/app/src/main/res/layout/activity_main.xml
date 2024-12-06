@@ -93,6 +93,7 @@
 
             <com.google.android.material.button.MaterialButton
                 style="?android:attr/buttonBarButtonStyle"
+                android:id="@+id/money_button"
                 app:icon="@drawable/baseline_money_24"
                 app:iconSize="36dp"
                 app:iconTint="@color/primary"
@@ -105,6 +106,7 @@
 
             <com.google.android.material.button.MaterialButton
                 style="?android:attr/buttonBarButtonStyle"
+                android:id="@+id/item_button"
                 app:icon="@drawable/baseline_object_24"
                 app:iconSize="36dp"
                 app:iconTint="@color/primary"
@@ -117,6 +119,7 @@
 
             <com.google.android.material.button.MaterialButton
                 style="?android:attr/buttonBarButtonStyle"
+                android:id="@+id/product_button"
                 app:icon="@drawable/baseline_product_24"
                 app:iconSize="36dp"
                 app:iconTint="@color/primary"
@@ -129,6 +132,7 @@
 
             <com.google.android.material.button.MaterialButton
                 style="?android:attr/buttonBarButtonStyle"
+                android:id="@+id/distance_button"
                 app:icon="@drawable/baseline_distance_24"
                 app:iconSize="36dp"
                 app:iconTint="@color/primary"
@@ -141,6 +145,7 @@
 
             <com.google.android.material.button.MaterialButton
                 style="?android:attr/buttonBarButtonStyle"
+                android:id="@+id/face_button"
                 app:icon="@drawable/baseline_face_24"
                 app:iconSize="36dp"
                 app:iconTint="@color/primary"
@@ -188,5 +193,21 @@
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
         android:onClick="onCaptureClick"/>
+
+    <com.google.android.material.button.MaterialButton
+        style="?android:attr/buttonBarButtonStyle"
+        android:id="@+id/voice_record_button"
+        app:icon="@drawable/baseline_keyboard_voice_24"
+        app:iconSize="36dp"
+        app:iconTint="@color/primary"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        app:layout_constraintBottom_toTopOf="@id/bottom_bar"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.2"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginBottom="96dp"
+        />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,15 +1,19 @@
 package com.example.frontend_kotlin
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaActionSound
+import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import android.util.Log
+import android.view.MotionEvent
 import android.view.View
+import android.widget.Button
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
@@ -44,12 +48,44 @@ class MainActivity : AppCompatActivity() {
     private var isUsingBackCamera = true
     private lateinit var addFaceActivityResultLauncher: ActivityResultLauncher<Intent>
 
+    // Audio recording
+    private lateinit var mediaRecorder: MediaRecorder
+    private lateinit var audioFile: File
+    private val REQUEST_RECORD_AUDIO_PERMISSION = 200
+    private var permissionToRecordAccepted = false
+    private val permissions: Array<String> = arrayOf(Manifest.permission.RECORD_AUDIO)
+
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 10
         private const val BASE_URL = "http://112.137.129.161:8000"
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
     }
 
+    private fun requestAudioPermissions() {
+        ActivityCompat.requestPermissions(this, permissions, REQUEST_RECORD_AUDIO_PERMISSION)
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        when (requestCode) {
+            REQUEST_RECORD_AUDIO_PERMISSION -> {
+                permissionToRecordAccepted = grantResults[0] == PackageManager.PERMISSION_GRANTED
+                if (!permissionToRecordAccepted) finish()
+            }
+            REQUEST_CODE_PERMISSIONS -> {
+                if (allPermissionsGranted()) {
+                    startCamera()
+                } else {
+                    Toast.makeText(this, "Permissions not granted", Toast.LENGTH_SHORT).show()
+                    finish()
+                }
+            }
+        }
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -57,6 +93,17 @@ class MainActivity : AppCompatActivity() {
         previewView = findViewById(R.id.camera_preview)
 
         TTS.initialize(this)
+
+        requestAudioPermissions()
+
+        val voiceRecordButton: Button = findViewById(R.id.voice_record_button)
+        voiceRecordButton.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> startRecording()
+                MotionEvent.ACTION_UP -> stopRecordingAndSend()
+            }
+            true
+        }
 
         endpoints = mapOf(
             getString(R.string.text) to "/document_recognition",
@@ -119,20 +166,6 @@ class MainActivity : AppCompatActivity() {
         ActivityCompat.requestPermissions(
             this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
         )
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_CODE_PERMISSIONS) {
-            if (allPermissionsGranted()) {
-                startCamera()
-            } else {
-                Toast.makeText(this, "Permissions not granted", Toast.LENGTH_SHORT).show()
-                finish()
-            }
-        }
     }
 
     private fun startCamera() {
@@ -346,5 +379,78 @@ class MainActivity : AppCompatActivity() {
                 TTS.speak("Đã thêm khuôn mặt thành công", TextToSpeech.QUEUE_FLUSH, null, null)
             }
         })
+    }
+
+    private fun startRecording() {
+        TTS.speak("Đang ghi âm, bạn muốn làm gì?", TextToSpeech.QUEUE_FLUSH, null, null)
+        try {
+            audioFile = File(externalCacheDir?.absolutePath + "/voice_command.mp3")
+            mediaRecorder = MediaRecorder().apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                setOutputFile(audioFile.absolutePath)
+                prepare()
+                start()
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error starting recording", e)
+            mediaRecorder.release()
+        }
+    }
+
+    private fun stopRecordingAndSend() {
+        mediaRecorder.apply {
+            stop()
+            release()
+        }
+        sendAudioToEndpoint(audioFile)
+    }
+
+    private fun sendAudioToEndpoint(audioFile: File) {
+        val client = OkHttpClient()
+        val mediaType = "audio/mpeg".toMediaTypeOrNull()
+        val requestBody = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart("file", audioFile.name, audioFile.asRequestBody(mediaType))
+            .build()
+
+        val request = Request.Builder()
+            .url("http://asdfdsafasfd/get_command")
+            .post(requestBody)
+            .build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.e("MainActivity", "Error sending audio to endpoint", e)
+                handleCommandResponse("text") // fake response, an pls delete later
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (!response.isSuccessful) {
+                    Log.e("MainActivity", "HTTP error! status: ${response.code}")
+                    return
+                }
+
+                val responseBody = response.body?.string()
+                if (responseBody != null) {
+                    handleCommandResponse(responseBody)
+                }
+            }
+        })
+    }
+
+    private fun handleCommandResponse(response: String) {
+        // Fake response handling
+        Log.d("MainActivity", "Command response: $response")
+        onButtonClick(findViewById(R.id.text_button))
+//        when (response) {
+//            "text" -> onButtonClick(findViewById(R.id.text_button))
+//            "money" -> onButtonClick(findViewById(R.id.money_button))
+//            "item" -> onButtonClick(findViewById(R.id.item_button))
+//            "product" -> onButtonClick(findViewById(R.id.product_button))
+//            "distance" -> onButtonClick(findViewById(R.id.distance_button))
+//            "face" -> onButtonClick(findViewById(R.id.face_button))
+//        }
     }
 }
