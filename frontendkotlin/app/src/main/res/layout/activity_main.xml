@@ -181,6 +181,21 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
+    <com.google.android.material.button.MaterialButton
+        style="?android:attr/buttonBarButtonStyle"
+        android:id="@+id/voice_record_button"
+        app:iconSize="36dp"
+        app:iconTint="@color/primary"
+        android:layout_width="400dp"
+        android:layout_height="680dp"
+        android:layout_gravity="center"
+        app:layout_constraintBottom_toTopOf="@id/bottom_bar"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginBottom="96dp"
+        />
+
     <ImageView
         android:id="@+id/circle"
         android:layout_width="64dp"
@@ -193,21 +208,5 @@
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
         android:onClick="onCaptureClick"/>
-
-    <com.google.android.material.button.MaterialButton
-        style="?android:attr/buttonBarButtonStyle"
-        android:id="@+id/voice_record_button"
-        app:icon="@drawable/baseline_keyboard_voice_24"
-        app:iconSize="36dp"
-        app:iconTint="@color/primary"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        app:layout_constraintBottom_toTopOf="@id/bottom_bar"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.2"
-        app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginBottom="96dp"
-        />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

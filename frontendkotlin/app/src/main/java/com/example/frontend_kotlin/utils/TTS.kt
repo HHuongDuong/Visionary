@@ -16,7 +16,7 @@ object TTS : TextToSpeech.OnInitListener {
             tts = TextToSpeech(context, this)
             tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) {
-                    // Do nothing
+
                 }
 
                 override fun onDone(utteranceId: String?) {
@@ -34,6 +34,7 @@ object TTS : TextToSpeech.OnInitListener {
         if (status == TextToSpeech.SUCCESS) {
             tts?.language = Locale("vi", "VN")
             isInitialized = true
+            speak("Chào mừng bạn đến với ứng dụng, hãy chạm giữ tay vào màn hình và nói lệnh bạn muốn thực hiện", TextToSpeech.QUEUE_FLUSH, null, null)
         } else {
             Log.e("TextToSpeechSingleton", "TextToSpeech initialization failed")
         }

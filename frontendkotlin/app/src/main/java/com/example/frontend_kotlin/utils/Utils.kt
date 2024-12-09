@@ -55,152 +55,142 @@ data class MessageContent(
 )
 
 
-class Utils {
-    companion object {
-        private val DeepgramApiKey = Dotenv.load()["DEEPGRAM_API_KEY"] ?: throw RuntimeException("DEEPGRAM_API_KEY not found")
-        private val OpenaiApiKey = Dotenv.load()["OPENAI_API_KEY"] ?: throw RuntimeException("OPENAI_API_KEY not found")
-        val gson = Gson()
+object Utils {
+    private val DeepgramApiKey = Dotenv.load()["DEEPGRAM_API_KEY"] ?: throw RuntimeException("DEEPGRAM_API_KEY not found")
+    private val OpenaiApiKey = Dotenv.load()["OPENAI_API_KEY"] ?: throw RuntimeException("OPENAI_API_KEY not found")
+    val gson = Gson()
 
-        fun getSpeechToText(audioFile : String) :String {
-            val client = OkHttpClient.Builder()
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(30, TimeUnit.SECONDS)
-                .writeTimeout(30, TimeUnit.SECONDS)
-                .build()
+    suspend fun getSpeechToText(audioFile: String): String = withContext(Dispatchers.IO) {
+        val client = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
 
-            val file = File(audioFile)
+        val file = File(audioFile)
 
-            val requestBody = file.asRequestBody("audio/wav".toMediaTypeOrNull())
+        val requestBody = file.asRequestBody("audio/wav".toMediaTypeOrNull())
 
-            val request = Request.Builder()
-                .url("https://api.deepgram.com/v1/listen?smart_format=true&model=nova-2&language=vi")
-                .post(requestBody)
-                .addHeader("Authorization", "Token $DeepgramApiKey")
-                .build()
+        val request = Request.Builder()
+            .url("https://api.deepgram.com/v1/listen?smart_format=true&model=nova-2&language=vi")
+            .post(requestBody)
+            .addHeader("Authorization", "Token $DeepgramApiKey")
+            .build()
 
-            try {
-                client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) {
-                        throw RuntimeException("API call failed: ${response.code} - ${response.message}")
-                    }
-
-                    val responseBody = response.body?.string() ?:
-                    throw IllegalStateException("Empty response body")
-
-                    val transcriptionResponse = gson.fromJson(
-                        responseBody,
-                        DeepgramTranscriptionResponse::class.java
-                    )
-
-                    return transcriptionResponse.results.channels[0].alternatives[0].transcript
+        try {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    throw RuntimeException("API call failed: ${response.code} - ${response.message}")
                 }
-            } catch (e: Exception) {
-                throw RuntimeException("Error processing speech-to-text: ${e.message}", e)
-            }
 
-        }
-        suspend fun getCommand(transcribe: String): String {
-            return withContext(Dispatchers.IO) {
-                val client = OkHttpClient.Builder()
-                    .connectTimeout(30, TimeUnit.SECONDS)
-                    .readTimeout(30, TimeUnit.SECONDS)
-                    .build()
+                val responseBody = response.body?.string()
+                    ?: throw IllegalStateException("Empty response body")
 
-                val gson = Gson()
-
-                val requestBody = OpenAiRequest(
-                    messages = listOf(
-                        Message(
-                            role = "system",
-                            content = """
-                    Bạn là trợ lý AI chuyên xử lý các yêu cầu từ văn bản chuyển đổi từ giọng nói. 
-                    Dựa trên nội dung của yêu cầu, hãy trả về ID duy nhất của hành động phù hợp nhất từ danh sách dưới đây:
-                    
-                    - 'text' - Nhận diện văn bản.
-                    - 'money' - Nhận diện tiền mặt.
-                    - 'item' - Giải thích hình ảnh.
-                    - 'product' - Nhận diện barcode.
-                    - 'distance' - Đo khoảng cách và nhận diện vật thể.
-                    - 'add_face' - Đăng ký nhận diện khuôn mặt.
-                    - 'face' - Nhận diện khuôn mặt.
-
-                    Quy tắc:
-                    - Chỉ trả về ID duy nhất. Không thêm bất kỳ văn bản nào khác.
-                    - Nếu yêu cầu không chắc chắn hoặc không rõ ràng, hãy trả về 'text' làm mặc định.
-                    - Ưu tiên trả về ID chính xác nhất dựa trên ngữ cảnh của yêu cầu.
-                    - Nếu không có ID phù hợp trong danh sách, hãy trả về 'text'.
-                    """.trimIndent()
-                        ),
-                        Message(
-                            role = "user",
-                            content = transcribe
-                        )
-                    )
+                val transcriptionResponse = gson.fromJson(
+                    responseBody,
+                    DeepgramTranscriptionResponse::class.java
                 )
 
-                val jsonRequest = gson.toJson(requestBody)
-
-                val request = Request.Builder()
-                    .url("https://api.openai.com/v1/chat/completions")
-                    .addHeader("Content-Type", "application/json")
-                    .addHeader("Authorization", "Bearer $OpenaiApiKey")
-                    .post(jsonRequest.toRequestBody("application/json".toMediaTypeOrNull()))
-                    .build()
-
-                try {
-                    client.newCall(request).execute().use { response ->
-                        if (!response.isSuccessful) {
-                            Log.e("CommandParser", "API Error: ${response.body?.string()}")
-                            return@withContext "text"
-                        }
-
-                        val responseBody = response.body?.string() ?: return@withContext "text"
-                        val apiResponse = gson.fromJson(responseBody, OpenAiResponse::class.java)
-                        val content = apiResponse.choices[0].message.content?.trim()
-                            ?: return@withContext "text"
-
-                        val validIds = setOf(
-                            "text",
-                            "money",
-                            "item",
-                            "product",
-                            "distance",
-                            "add_face",
-                            "face"
-                        )
-
-                        if (content in validIds) content else "text"
-                    }
-                } catch (e: Exception) {
-                    Log.e("CommandParser", "Error parsing command", e)
-                    "text"
-                }
+                return@withContext transcriptionResponse.results.channels[0].alternatives[0].transcript
             }
+        } catch (e: Exception) {
+            throw RuntimeException("Error processing speech-to-text: ${e.message}", e)
         }
+    }
 
+    suspend fun getCommand(transcribe: String): String = withContext(Dispatchers.IO) {
+        val client = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
 
+        val gson = Gson()
 
+        val requestBody = OpenAiRequest(
+            messages = listOf(
+                Message(
+                    role = "system",
+                    content = """
+            Bạn là trợ lý AI chuyên xử lý các yêu cầu từ văn bản chuyển đổi từ giọng nói. 
+            Dựa trên nội dung của yêu cầu, hãy trả về ID duy nhất của hành động phù hợp nhất từ danh sách dưới đây:
+            
+            - 'text' - Nhận diện văn bản.
+            - 'money' - Nhận diện tiền mặt.
+            - 'item' - Giải thích hình ảnh.
+            - 'product' - Nhận diện barcode.
+            - 'distance' - Đo khoảng cách và nhận diện vật thể.
+            - 'add_face' - Đăng ký nhận diện khuôn mặt.
+            - 'face' - Nhận diện khuôn mặt.
 
-        fun String.sanitizeCommandId(): String {
-            val validIds = setOf(
-                "text",
-                "money",
-                "item",
-                "barcode",
-                "distance",
-                "add_face",
-                "face"
+            Quy tắc:
+            - Chỉ trả về ID duy nhất. Không thêm bất kỳ văn bản nào khác.
+            - Nếu yêu cầu không chắc chắn hoặc không rõ ràng, hãy trả về 'text' làm mặc định.
+            - Ưu tiên trả về ID chính xác nhất dựa trên ngữ cảnh của yêu cầu.
+            - Nếu không có ID phù hợp trong danh sách, hãy trả về 'text'.
+            """.trimIndent()
+                ),
+                Message(
+                    role = "user",
+                    content = transcribe
+                )
             )
+        )
 
-            return if (this in validIds) this else "text"
+        val jsonRequest = gson.toJson(requestBody)
+
+        val request = Request.Builder()
+            .url("https://api.openai.com/v1/chat/completions")
+            .addHeader("Content-Type", "application/json")
+            .addHeader("Authorization", "Bearer $OpenaiApiKey")
+            .post(jsonRequest.toRequestBody("application/json".toMediaTypeOrNull()))
+            .build()
+
+        try {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    Log.e("CommandParser", "API Error: ${response.body?.string()}")
+                    return@withContext "text"
+                }
+
+                val responseBody = response.body?.string() ?: return@withContext "text"
+                val apiResponse = gson.fromJson(responseBody, OpenAiResponse::class.java)
+                val content = apiResponse.choices[0].message.content?.trim() ?: return@withContext "text"
+
+                val validIds = setOf(
+                    "text",
+                    "money",
+                    "item",
+                    "product",
+                    "distance",
+                    "face"
+                )
+
+                return@withContext if (content in validIds) content else "text"
+            }
+        } catch (e: Exception) {
+            Log.e("CommandParser", "Error parsing command", e)
+            return@withContext "text"
         }
+    }
 
+    fun String.sanitizeCommandId(): String {
+        val validIds = setOf(
+            "text",
+            "money",
+            "item",
+            "barcode",
+            "distance",
+            "add_face",
+            "face"
+        )
+
+        return if (this in validIds) this else "text"
     }
 }
 
 suspend fun main() {
-    val audioFilePath = "/home/xuananle/Voice 002.wav"
-    val transcribe = Utils.getSpeechToText(audioFilePath)
-    println(transcribe)
-    println(Utils.getCommand("Tôi cần biết trong barcode của sản phẩm này có những cái gì"))
+//    val audioFilePath = "/home/xuananle/Voice 002.wav"
+//    val transcribe = Utils.getSpeechToText(audioFilePath)
+//    println(transcribe)
+    println(Utils.getCommand("Đọc văn bản"))
 }

@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaActionSound
+import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Build
@@ -30,8 +31,11 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.lifecycle.lifecycleScope
 import com.example.frontend_kotlin.utils.TTS
+import com.example.frontend_kotlin.utils.Utils
 import com.google.android.material.button.MaterialButton
+import kotlinx.coroutines.launch
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -382,7 +386,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startRecording() {
-        TTS.speak("Đang ghi âm, bạn muốn làm gì?", TextToSpeech.QUEUE_FLUSH, null, null)
+//        TTS.speak("Đang ghi âm, bạn muốn làm gì?", TextToSpeech.QUEUE_FLUSH, null, null)
         try {
             audioFile = File(externalCacheDir?.absolutePath + "/voice_command.mp3")
             mediaRecorder = MediaRecorder().apply {
@@ -400,57 +404,45 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun stopRecordingAndSend() {
-        mediaRecorder.apply {
-            stop()
-            release()
+        if (!this::mediaRecorder.isInitialized) {
+            return
         }
-        sendAudioToEndpoint(audioFile)
+        try {
+            mediaRecorder.apply {
+                stop()
+                release()
+            }
+            if (!this::audioFile.isInitialized) {
+                return
+            }
+            handleCommandResponse(audioFile)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error stopping recording", e)
+            mediaRecorder.release()
+        }
     }
 
-    private fun sendAudioToEndpoint(audioFile: File) {
-        val client = OkHttpClient()
-        val mediaType = "audio/mpeg".toMediaTypeOrNull()
-        val requestBody = MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart("file", audioFile.name, audioFile.asRequestBody(mediaType))
-            .build()
+    private fun handleCommandResponse(audioFile: File) {
+        lifecycleScope.launch {
+            try {
+                val audioFilePath = audioFile.absolutePath
+                val transcribe = Utils.getSpeechToText(audioFilePath)
+                Log.d("MainActivity", "Transcribe: $transcribe")
+                val command = Utils.getCommand(transcribe)
+                Log.d("MainActivity", "Command: $command")
+                TTS.speak(command, TextToSpeech.QUEUE_FLUSH, null, null)
 
-        val request = Request.Builder()
-            .url("http://asdfdsafasfd/get_command")
-            .post(requestBody)
-            .build()
-
-        client.newCall(request).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                Log.e("MainActivity", "Error sending audio to endpoint", e)
-                handleCommandResponse("text") // fake response, an pls delete later
-            }
-
-            override fun onResponse(call: Call, response: Response) {
-                if (!response.isSuccessful) {
-                    Log.e("MainActivity", "HTTP error! status: ${response.code}")
-                    return
+                when (command) {
+                    "text" -> onButtonClick(findViewById(R.id.text_button))
+                    "money" -> onButtonClick(findViewById(R.id.money_button))
+                    "item" -> onButtonClick(findViewById(R.id.item_button))
+                    "product" -> onButtonClick(findViewById(R.id.product_button))
+                    "distance" -> onButtonClick(findViewById(R.id.distance_button))
+                    "face" -> onButtonClick(findViewById(R.id.face_button))
                 }
-
-                val responseBody = response.body?.string()
-                if (responseBody != null) {
-                    handleCommandResponse(responseBody)
-                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error handling command response", e)
             }
-        })
-    }
-
-    private fun handleCommandResponse(response: String) {
-        // Fake response handling
-        Log.d("MainActivity", "Command response: $response")
-        onButtonClick(findViewById(R.id.text_button))
-//        when (response) {
-//            "text" -> onButtonClick(findViewById(R.id.text_button))
-//            "money" -> onButtonClick(findViewById(R.id.money_button))
-//            "item" -> onButtonClick(findViewById(R.id.item_button))
-//            "product" -> onButtonClick(findViewById(R.id.product_button))
-//            "distance" -> onButtonClick(findViewById(R.id.distance_button))
-//            "face" -> onButtonClick(findViewById(R.id.face_button))
-//        }
+        }
     }
 }
