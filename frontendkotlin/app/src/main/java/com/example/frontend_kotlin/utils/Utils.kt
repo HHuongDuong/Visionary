@@ -55,12 +55,14 @@ data class MessageContent(
 )
 
 
+
 object Utils {
-    private val DeepgramApiKey = Dotenv.load()["DEEPGRAM_API_KEY"] ?: throw RuntimeException("DEEPGRAM_API_KEY not found")
-    private val OpenaiApiKey = Dotenv.load()["OPENAI_API_KEY"] ?: throw RuntimeException("OPENAI_API_KEY not found")
+    private val DeepgramApiKey = Dotenv.load()["DEEPGRAM_API_KEY"]
+    private val OpenaiApiKey = Dotenv.load()["OPENAI_API_KEY"]
     val gson = Gson()
 
     suspend fun getSpeechToText(audioFile: String): String = withContext(Dispatchers.IO) {
+        Log.d("Utils", "Transcribing audio file: $audioFile")
         val client = OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
@@ -117,9 +119,9 @@ object Utils {
             - 'text' - Nhận diện văn bản.
             - 'money' - Nhận diện tiền mặt.
             - 'item' - Giải thích hình ảnh.
-            - 'product' - Nhận diện barcode.
-            - 'distance' - Đo khoảng cách và nhận diện vật thể.
-            - 'add_face' - Đăng ký nhận diện khuôn mặt.
+            - 'product' - Nhận diện sản phẩm thông qua mã vạch.
+            - 'distance' - Đo khoảng cách và nhận diện an toàn vật thể.
+            - 'add_face' - Đăng ký nhận diện khuôn mặt với người thân, bạn bè của tôi.
             - 'face' - Nhận diện khuôn mặt.
 
             Quy tắc:

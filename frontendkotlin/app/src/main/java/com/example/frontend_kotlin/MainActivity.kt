@@ -61,7 +61,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 10
-        private const val BASE_URL = "http://112.137.129.161:8000"
+        private const val BASE_URL = "http://192.168.1.12:8000"
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
     }
 
@@ -117,7 +117,7 @@ class MainActivity : AppCompatActivity() {
             getString(R.string.distance) to "/distance_estimate",
             getString(R.string.face) to "/face_detection/recognize",
             getString(R.string.add_face) to "/face_detection/register"
-        )
+            )
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -253,6 +253,7 @@ class MainActivity : AppCompatActivity() {
         val sound = MediaActionSound()
         sound.play(MediaActionSound.SHUTTER_CLICK)
     }
+
 
     private fun sendImageToEndpoint(photoFile: File) {
         val endpoint = endpoints[selectedButtonText]
@@ -439,6 +440,10 @@ class MainActivity : AppCompatActivity() {
                     "product" -> onButtonClick(findViewById(R.id.product_button))
                     "distance" -> onButtonClick(findViewById(R.id.distance_button))
                     "face" -> onButtonClick(findViewById(R.id.face_button))
+                    "add_face" -> onButtonClick(findViewById(R.id.add_face_button))
+                    else -> {
+                        TTS.speak("Không thể xử lý yêu cầu", TextToSpeech.QUEUE_FLUSH, null, null)
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error handling command response", e)

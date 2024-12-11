@@ -1,3 +1,4 @@
+import base64
 import cv2
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -14,9 +15,6 @@ import sys
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import FileResponse
 from tempfile import NamedTemporaryFile
-from text_to_speech.provider.Deepgram.deepgram import text_to_speech_async as deepgram_text_to_speech_async
-from text_to_speech.provider.Deepgram.deepgram import text_to_speech as deepgram_text_to_speech
-from text_to_speech.provider.Deepgram.deepgram import text_2_speech, text_2_speech_async
 from product_recognition.pipeline import BarcodeProcessor
 from deepface import DeepFace
 import time
@@ -61,16 +59,12 @@ async def document_recognition(file: UploadFile = File(...)):
         ocr_result = ocr.recognize_text(temp_path).text
         result = json.loads(ocr_result).get("text", ocr_result)
 
-        audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
         pdf_path = NamedTemporaryFile(delete=False, suffix=".pdf").name
         asyncio.gather(
-            text_2_speech_async(text=result, output_path=audio_path),
             utils.create_pdf_async(result, pdf_path)
         )
-        print("The Audio Path is ", audio_path)
         return JSONResponse(content={
             "text": result,
-            "audio_path": audio_path,
             "pdf_path": pdf_path
         })
 
@@ -88,15 +82,8 @@ async def currency_detection(file: UploadFile = File(...)):
             img = cv2.imread(temp.name)
             currency_detector(img)
             total_money = currency_detector.get_total_money()
-            audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
-            # deepgram_text_to_speech(api_key= config.DEEPGRAM_API_KEY, 
-            #                         text = f"Total money is {total_money}" , output_path=audio_path)
-            asyncio.gather(
-                text_2_speech_async(text=f"Total money is {total_money}", output_path=audio_path)
-            )
             return JSONResponse(content={
                 "total_money": total_money,
-                "audio_path": audio_path
             })
     except Exception as e:
         print(e)
@@ -130,14 +117,8 @@ async def image_captioning(file: UploadFile = File(...)):
             if not description:
                 raise HTTPException(status_code=500, detail="Description not found in JSON response")
 
-            audio_path = NamedTemporaryFile(delete=False, suffix=".mp3").name
-            asyncio.gather(
-                text_2_speech_async(text=description, output_path=audio_path)
-            )
-
             return JSONResponse(content={
                 "description": description,
-                "audio_path": audio_path
             })
 
     except Exception as e:
@@ -173,6 +154,7 @@ calculate_focal_length_stream(image_path)
 @app.post("/distance_estimate")
 async def calculate_distance(file: UploadFile = File(...)):
     image_data = await file.read()
+    base64_image = base64.b64encode(image_data).decode("utf-8")
     np_arr = np.frombuffer(image_data, np.uint8)
     image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
     if image is None:
@@ -182,7 +164,7 @@ async def calculate_distance(file: UploadFile = File(...)):
 
     if results is None:
         raise HTTPException(status_code=400, detail="Không thể xử lý ảnh.")
-    results = utils.format_response_distance_estimate_with_openai(results)
+    results = utils.format_response_distance_estimate_with_openai(results, base64_image)
     
     return JSONResponse(content={
         "description" : results

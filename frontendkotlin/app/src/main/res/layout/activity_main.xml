@@ -162,6 +162,7 @@
                 app:iconSize="36dp"
                 app:iconTint="@color/primary"
                 android:layout_width="64dp"
+                android:id="@+id/add_face_button"
                 android:layout_height="wrap_content"
                 android:contentDescription="@string/add_face"
                 app:iconGravity="textStart"
