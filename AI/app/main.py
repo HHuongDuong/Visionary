@@ -152,7 +152,7 @@ image_path = "dis.jpg"
 calculate_focal_length_stream(image_path)
 
 @app.post("/distance_estimate")
-async def calculate_distance(file: UploadFile = File(...)):
+async def calculate_distance(transcribe: str,file: UploadFile = File(...)):
     image_data = await file.read()
     base64_image = base64.b64encode(image_data).decode("utf-8")
     np_arr = np.frombuffer(image_data, np.uint8)
@@ -164,7 +164,7 @@ async def calculate_distance(file: UploadFile = File(...)):
 
     if results is None:
         raise HTTPException(status_code=400, detail="Không thể xử lý ảnh.")
-    results = utils.format_response_distance_estimate_with_openai(results, base64_image)
+    results = utils.format_response_distance_estimate_with_openai(results, transcribe, base64_image)
     
     return JSONResponse(content={
         "description" : results

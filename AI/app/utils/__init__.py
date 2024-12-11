@@ -35,7 +35,7 @@ async def create_pdf_async(text: str, pdf_path: str):
     await asyncio.to_thread(create_pdf, text, pdf_path)
     
 
-def format_response_distance_estimate_with_openai(response, base64_image):
+def format_response_distance_estimate_with_openai(response, trascribe ,base64_image):
     try:
         if response == None or len(response) == 0:
             return "Hiện tại không có vật thể nào được phát hiện"
@@ -51,20 +51,7 @@ def format_response_distance_estimate_with_openai(response, base64_image):
 
         system_prompt = """
             Nhiệm vụ của bạn là chuyển đổi dữ liệu phát hiện đối tượng thành báo cáo chi tiết và dễ hiểu bằng tiếng Việt, bao gồm các yếu tố sau:
-                - Dịch tên lớp đối tượng sang tiếng Việt. Ngoài ra tôi còn đang đính kèm 1 bức ảnh chụp sự kiện
-                - Cung cấp khoảng cách chính xác đến đối tượng bằng inch.
-                - Xác định mức độ an toàn của từng đối tượng và đưa ra nhận định về sự nguy hiểm.
-                - Cảnh báo đối với các đối tượng có nguy cơ gây hại, ví dụ như người cầm dao.
-                - Dùng ngôn ngữ rõ ràng, dễ hiểu để mô tả mức độ nguy hiểm và tình huống.     
-
-                Định dạng báo cáo mẫu:
-
-                "Tôi nhận thấy một [Tên đối tượng bằng tiếng Việt] cách tôi [Khoảng cách] inch.
-                Đánh giá: [Mức độ an toàn]
-                [Mô tả ngắn gọn về mức độ nguy hiểm nếu có]"
-                Lưu ý:
-                - Các đối tượng nguy hiểm cần được cảnh báo đặc biệt. Ví dụ: một người cầm dao gần bạn sẽ có mức độ nguy hiểm cao và cần thông báo ngay lập tức.
-                - Khoảng cách được báo cáo chính xác và cần đảm bảo tính chính xác trong việc xác định mức độ an toàn của từng đối tượng.
+            
         """
 
         completion = client.chat.completions.create(
@@ -76,6 +63,10 @@ def format_response_distance_estimate_with_openai(response, base64_image):
                         "type" : "text",
                         "text" : str(response)
                     }, 
+                    {
+                        "type": "text",
+                        "text": trascribe
+                    },
                     {
                         "type": "image_url",
                         "image_url": {
