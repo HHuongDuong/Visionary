@@ -24,6 +24,7 @@ from distance_estimate.stream_video_distance import calculate_focal_length_strea
 from face_detection.detectMongo import find_existing_face, process_frame, save_embedding_to_db, connect_mongodb, calculate_focal_length
 import json
 import mimetypes
+from image_captioning.provider.gpt4.gpt4 import OpenAIProvider
 start = time.time()
 ocr = OcrRecognition()
 currency_detection_model_path = "./currency_detection/model/best8.onnx"
@@ -57,7 +58,7 @@ async def document_recognition(file: UploadFile = File(...)):
             temp_path = temp.name
 
         ocr_result = ocr.recognize_text(temp_path).text
-        result = json.loads(ocr_result).get("text", ocr_result)
+        result = ocr_result
 
         pdf_path = NamedTemporaryFile(delete=False, suffix=".pdf").name
         asyncio.gather(
@@ -95,31 +96,26 @@ async def image_captioning(file: UploadFile = File(...)):
     try:
         with NamedTemporaryFile(delete=False) as temp:
             temp.write(file.file.read())
-            temp.close()
-            print(temp.name)
-            mime_type, _ = mimetypes.guess_type(file.filename)
-            print(f"MIME Type from original filename: {mime_type}")
-            
-            if not mime_type:
-                raise HTTPException(status_code=400, detail="Cannot determine the mimetype of the uploaded file.")
+            temp_path = temp.name 
 
-            description_json = gen_img_description(temp.name, mime_type)
-            if not description_json:
-                raise HTTPException(status_code=500, detail="Failed to generate image description")
+        mime_type, _ = mimetypes.guess_type(file.filename)
+        if not mime_type:
+            raise HTTPException(status_code=400, detail="Cannot determine the mimetype of the uploaded file.")
 
-            try:
-                description_data = json.loads(description_json)
-                description = description_data.get("description")
-            except json.JSONDecodeError as e:
-                print(f"Error decoding JSON: {e}")
-                raise HTTPException(status_code=500, detail="Invalid JSON response from image captioning service")
+        provider = OpenAIProvider() 
+        base64_image = provider.encode_image(temp_path)
+        if not base64_image:
+            raise HTTPException(status_code=500, detail="Failed to encode image")
 
-            if not description:
-                raise HTTPException(status_code=500, detail="Description not found in JSON response")
 
-            return JSONResponse(content={
-                "description": description,
-            })
+        description = provider.frame_description(base64_image) 
+
+        if not description:
+            raise HTTPException(status_code=500, detail="Failed to generate image description")
+
+        return JSONResponse(content={
+            "description": description,
+        })
 
     except Exception as e:
         print(e)
@@ -161,11 +157,11 @@ async def calculate_distance(transcribe: str,file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Invalid image file")
     
     results = calculate_distance_from_image(image_data)
-
+    print(results)
     if results is None:
         raise HTTPException(status_code=400, detail="Không thể xử lý ảnh.")
     results = utils.format_response_distance_estimate_with_openai(results, transcribe, base64_image)
-    
+    print(results)
     return JSONResponse(content={
         "description" : results
     })
@@ -210,7 +206,7 @@ async def register(
         }))
         
         return JSONResponse(content= {
-            "description": f"Đã đăng kí thành công nhận diện khuôn mặt đối với {name} với thông tin như sau: Quê quán: {hometown}, Mối quan hệ với người dùng {relationship}, ngày tháng năm sinh: {date_of_birth}"
+            "description": f"Đã đăng kí thành công nhận diện khuôn mặt đối với {name} với thông tin như sau: Quê quán: {hometown}, Mối quan hệ với ngư��i dùng {relationship}, ngày tháng năm sinh: {date_of_birth}"
         })
         
     except Exception as e:
@@ -268,7 +264,7 @@ async def recognize(file: UploadFile = File(...)):
                 }
                 print(result)
                 return JSONResponse(content= {
-                    "description": f"Nhận diện thành công. Đây là {recognized_name}, cách bạn khoảng {data.get('Distance').item()} inch, quê quán: {hometown}, mối quan hệ với bạn là {relationship}"
+                    "description": f"Nhận diện thành công. Đây là {recognized_name}, cách bạn khoảng {data.get('Distance').item()} inch, quê quán: {hometown}, mối quan h��� với bạn là {relationship}"
                 })
         else:
             raise HTTPException(status_code=404, detail="Face not recognized")

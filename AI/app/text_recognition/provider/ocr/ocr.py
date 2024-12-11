@@ -2,7 +2,11 @@ import os
 import mimetypes
 import logging
 from dataclasses import dataclass
-import google.generativeai as genai
+import openai
+from dotenv import load_dotenv
+import base64
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -12,16 +16,7 @@ class RecognitionResult:
 
 class OcrRecognition:
     def __init__(self):
-        self.generation_config = {
-            "temperature": 0.5,
-            "top_p": 0.95,
-            "top_k": 40,
-            "max_output_tokens": 8192
-        }
-        self.model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash-002", 
-            generation_config=self.generation_config
-        )
+        openai.api_key = os.getenv("OPENAI_API_KEY")
 
     def recognize_text(self, file_path: str) -> RecognitionResult:
         try:
@@ -31,30 +26,37 @@ class OcrRecognition:
             if not mime_type or not mime_type.startswith("image/"):
                 raise ValueError(f"Invalid MIME type: {mime_type}. Only image files are supported.")
 
-            img_file = genai.upload_file(path=file_path, mime_type=mime_type)
-            while img_file.state.name == "PROCESSING":
-                img_file = genai.get_file(img_file.name)
-                logger.info(f"Image processing state: {img_file.state.name}")
-
-            if img_file.state.name == "FAILED":
-                logger.error(f"Error uploading image: {img_file.state.details}")
-                raise ValueError("Failed to process image.")
+            with open(file_path, "rb") as image_file:
+                base64_image = base64.b64encode(image_file.read()).decode('utf-8')
 
             prompt = (
                 "Trích xuất nội dung văn bản từ ảnh tài liệu. "
                 "Chỉ trả lại văn bản chính xác như xuất hiện trong tài liệu, không thêm bất kỳ thông tin nào khác."
             )
 
-            response = self.model.generate_content(
-                [img_file, prompt],
-                generation_config=genai.GenerationConfig(response_mime_type="application/json"),
-                request_options={"timeout": 5000}
+            response = openai.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": prompt
+                    },
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{base64_image}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens=200
             )
 
-            # Xóa tệp sau khi xử lý
-            img_file.delete()
-
-            return RecognitionResult(text=response.text.strip())
+            return RecognitionResult(text=response.choices[0].message.content.strip())
 
         except Exception as e:
             logger.error(f"Lỗi trong quá trình nhận dạng văn bản: {str(e)}")

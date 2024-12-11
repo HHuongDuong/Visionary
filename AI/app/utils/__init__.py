@@ -35,9 +35,9 @@ async def create_pdf_async(text: str, pdf_path: str):
     await asyncio.to_thread(create_pdf, text, pdf_path)
     
 
-def format_response_distance_estimate_with_openai(response, trascribe ,base64_image):
+def format_response_distance_estimate_with_openai(response, transcribe, base64_image):
     try:
-        if response == None or len(response) == 0:
+        if response is None or len(response) == 0:
             return "Hiện tại không có vật thể nào được phát hiện"
             
         if not config.OPENAI_API_KEY:
@@ -50,8 +50,20 @@ def format_response_distance_estimate_with_openai(response, trascribe ,base64_im
         client = OpenAI()
 
         system_prompt = """
-            Nhiệm vụ của bạn là chuyển đổi dữ liệu phát hiện đối tượng thành báo cáo chi tiết và dễ hiểu bằng tiếng Việt, bao gồm các yếu tố sau:
-            
+            Bạn là một chuyên gia trong việc hướng dẫn người khiếm thị di chuyển an toàn và lấy đồ vật. Nhiệm vụ của bạn là chuyển đổi dữ liệu phát hiện đối tượng thành hướng dẫn di chuyển chi tiết, rõ ràng và an toàn bằng tiếng Việt. Bao gồm các yếu tố sau:
+
+            - Xác định và mô tả vị trí của đồ vật được yêu cầu.
+            - Cung cấp hướng dẫn từng bước rõ ràng về cách tiếp cận đồ vật.
+            - Nêu bật bất kỳ mối nguy hiểm hoặc chướng ngại vật nào trên đường đi và đề xuất cách tránh chúng.
+            - Sử dụng ngôn ngữ chính xác để mô tả hướng đi (ví dụ: trái, phải, tiến, lùi) và khoảng cách.
+            - Đảm bảo hướng dẫn dễ hiểu và ưu tiên sự an toàn.
+
+            Định dạng ví dụ:
+            "Để đến [đồ vật], hãy làm theo các bước sau:
+            1. Tiến về phía trước khoảng [khoảng cách] inch.
+            2. Rẽ [hướng] và tiếp tục đi [khoảng cách] inch.
+            3. Cẩn thận với [mối nguy hiểm] nằm ở [vị trí].
+            4. [Đồ vật] nằm ở [vị trí cuối cùng]."
         """
 
         completion = client.chat.completions.create(
@@ -60,12 +72,12 @@ def format_response_distance_estimate_with_openai(response, trascribe ,base64_im
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": [
                     {
-                        "type" : "text",
-                        "text" : str(response)
+                        "type": "text",
+                        "text": str(response)
                     }, 
                     {
                         "type": "text",
-                        "text": trascribe
+                        "text": transcribe
                     },
                     {
                         "type": "image_url",
@@ -91,7 +103,6 @@ def format_response_distance_estimate_with_openai(response, trascribe ,base64_im
         return f"Lỗi xử lý: {str(openai_error)}"
 
     except Exception as e:
-        # Catch-all for any other unexpected errors
         logging.error(f"Unexpected error in distance estimation: {e}")
         return str(response)
     
