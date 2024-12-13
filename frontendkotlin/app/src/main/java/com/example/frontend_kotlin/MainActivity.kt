@@ -5,7 +5,6 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaActionSound
-import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Build
@@ -47,6 +46,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var previewView: PreviewView
     private var selectedButton: MaterialButton? = null
     private var selectedButtonText: String? = null
+    private var userTranscribe : String = ""
     private lateinit var imageCapture: ImageCapture
     private lateinit var endpoints: Map<String, String>
     private var isUsingBackCamera = true
@@ -61,7 +61,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 10
-        private const val BASE_URL = "http://192.168.1.12:8000"
+        private const val BASE_URL = "http://192.168.1.6:8000"
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
     }
 
@@ -255,13 +255,76 @@ class MainActivity : AppCompatActivity() {
     }
 
 
+
     private fun sendImageToEndpoint(photoFile: File) {
+
         val endpoint = endpoints[selectedButtonText]
         Log.d("sendImageToEndpoint", "Endpoint: $endpoint")
         if (endpoint == null) {
             return
-        }
+        } else if (selectedButtonText == getString(R.string.distance)) {
 
+            val client = OkHttpClient.Builder()
+                .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                .build();
+            val mediaType = "image/png".toMediaTypeOrNull()
+            Log.e("MainActivity", "User transcribe: $userTranscribe")
+            val requestBody = MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("file", photoFile.name, photoFile.asRequestBody(mediaType))
+                .build()
+
+            val request = Request.Builder()
+                .url("$BASE_URL$endpoint?transcribe=$userTranscribe")
+                .post(requestBody)
+                .addHeader("Accept", "application/json")
+                .addHeader("Content-Type", "multipart/form-data")
+                .build()
+
+            client.newCall(request).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    Log.e("MainActivity", "Error sending image to endpoint", e)
+                }
+
+                @RequiresApi(Build.VERSION_CODES.O)
+                override fun onResponse(call: Call, response: Response) {
+                    if (!response.isSuccessful) {
+                        Log.e("MainActivity", "HTTP error! status: ${response.code}")
+                        return
+                    } else {
+                        Log.d("MainActivity", "HTTP success! status: ${response.code}")
+                    }
+
+                    val responseBody = response.body?.string()
+                    if (responseBody == null) {
+                        Log.e("MainActivity", "Empty response body")
+                        return
+                    }
+
+                    Log.d("MainActivity", "Response body: $responseBody")
+
+                    val jsonObject = JSONObject(responseBody)
+                    val text: String? = jsonObject.optString("text", null)
+                    val totalMoney: String? = jsonObject.optString("total_money", null)
+                    val description: String? = jsonObject.optString("description", null)
+
+                    val responseText = when (selectedButtonText) {
+                        getString(R.string.text) -> text
+                        getString(R.string.money) -> totalMoney
+                        getString(R.string.item) -> description
+                        getString(R.string.product) -> description
+                        getString(R.string.distance) -> description
+                        getString(R.string.face) -> description
+                        else -> "Không thể xử lý yêu cầu"
+                    }
+                    Log.d("MainActivity", "Response text: $responseText")
+                    TTS.speak(responseText.toString(), TextToSpeech.QUEUE_FLUSH, null, "utteranceId")
+                }
+            })
+            return;
+        }
         val client = OkHttpClient.Builder()
             .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
@@ -334,7 +397,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun sendImageToEndpoint(photoFile: File, name: String, hometown: String, relationship: String, dateOfBirth: String) {
         val endpoint = endpoints[selectedButtonText]
-        Log.d("sendImageToEndpoint", "Endpoint: $endpoint")
+        Log.d("MainActivity", "Endpoint: $endpoint")
         if (endpoint == null) {
             return
         }
@@ -428,6 +491,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 val audioFilePath = audioFile.absolutePath
                 val transcribe = Utils.getSpeechToText(audioFilePath)
+                userTranscribe = transcribe
                 Log.d("MainActivity", "Transcribe: $transcribe")
                 val command = Utils.getCommand(transcribe)
                 Log.d("MainActivity", "Command: $command")

@@ -4,6 +4,7 @@ import android.util.Log
 import io.github.cdimascio.dotenv.Dotenv
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
+import io.github.cdimascio.dotenv.Dotenv
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.Dispatchers
@@ -57,8 +58,8 @@ data class MessageContent(
 
 
 object Utils {
-    private val DeepgramApiKey = "2fd8a068f608ddab707cd3f44d76648a79ebde9b"
-    private val OpenaiApiKey = "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"
+    private val DeepgramApiKey = Dotenv.load()["DEEPGRAM_API_KEY"]
+    private val OpenaiApiKey = Dotenv.load()["OPENAI_API_KEY"]
     val gson = Gson()
 
     suspend fun getSpeechToText(audioFile: String): String = withContext(Dispatchers.IO) {
@@ -120,7 +121,7 @@ object Utils {
             - 'money' - Nhận diện tiền mặt.
             - 'item' - Giải thích hình ảnh.
             - 'product' - Nhận diện sản phẩm thông qua mã vạch.
-            - 'distance' - Đo khoảng cách và nhận diện an toàn vật thể.
+            - 'distance' - Tìm kiếm vị trí của một vật thể và khoảng cách từ vị trí hiện tại.
             - 'add_face' - Đăng ký nhận diện khuôn mặt với người thân, bạn bè của tôi.
             - 'face' - Nhận diện khuôn mặt.
 
@@ -195,5 +196,5 @@ suspend fun main() {
 //    val audioFilePath = "/home/xuananle/Voice 002.wav"
 //    val transcribe = Utils.getSpeechToText(audioFilePath)
 //    println(transcribe)
-    println(Utils.getCommand("Đăng ký nhận diện khuôn mặt với người thân, bạn bè của tôi"))
+        println(Utils.getCommand("Tôi muốn tìm vị trí của cái kéo đang nằm trước mặt tôi"))
 }
