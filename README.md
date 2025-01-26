@@ -1,4 +1,9 @@
 # Introduction
+## Team Members
+- Lê Xuân An
+- Lê Minh Qúy
+- Nguyễn Hoàng Quân
+- Nguyễn Viết Phong
 
 # Installation
 Create virtual environment
