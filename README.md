@@ -10,9 +10,9 @@ Create virtual environment
 ```bash
 python3 -m venv venv
 ```
-Activate virtual environment
-```bash
-source venv/bin/activate
+Activate virtual environment (Windows PowerShell)
+```powershell
+.\venv\Scripts\Activate.ps1
 ```
 Install packages
 ```bash

@@ -1,7 +1,7 @@
 import base64
 import cv2
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from fpdf import FPDF
 import numpy as np
 import openai
@@ -34,14 +34,56 @@ ocr = OcrRecognition()
 currency_detection_model_path = "./currency_detection/model/best8.onnx"
 currency_detector = YOLOv8(currency_detection_model_path, conf_thres=0.2, iou_thres=0.3)
 barcode_processor = BarcodeProcessor()
-distance_estimation_model_path = "./distance_estimate/models/yolov8m.onnx"
+distance_estimation_model_path = os.path.join(
+    os.path.dirname(__file__),
+    "distance_estimate", "models", "yolov8m.onnx"
+)
+# Ensure all model paths are absolute
+print(f"Distance estimation model path: {distance_estimation_model_path}", file=sys.stderr)
 print(f"All Models loaded in {time.time() - start:.2f} seconds", file=sys.stderr)
 
 app = FastAPI()
 
-@app.get("/")
-async def read_root():
-    return {"Hello": "World"}
+from fastapi.middleware.cors import CORSMiddleware
+
+# Allow frontend (port 8080) to access all backend features
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8080", "http://127.0.0.1:8080"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/", response_class=JSONResponse)
+def root():
+    # Return HTML with buttons linking to each feature
+    html = '''
+    <html>
+    <head>
+        <title>VisionMate Features</title>
+        <style>
+            body { background: #f3f4f6; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
+            h1 { color: #3b82f6; margin-bottom: 2rem; }
+            .btn-group { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; }
+            a.button { background: linear-gradient(90deg, #6366f1 0%, #a78bfa 100%); color: white; padding: 1rem 2rem; border-radius: 0.75rem; text-decoration: none; font-size: 1.2rem; font-weight: 600; box-shadow: 0 2px 8px #0001; transition: background 0.2s, transform 0.2s; }
+            a.button:hover { background: linear-gradient(90deg, #2563eb 0%, #7c3aed 100%); transform: translateY(-2px) scale(1.04); }
+        </style>
+    </head>
+    <body>
+        <h1>VisionMate Features</h1>
+        <div class="btn-group">
+            <a class="button" href="/docs#/default/document_recognition_document_recognition_post">Document Recognition</a>
+            <a class="button" href="/docs#/default/currency_detection_currency_detection_post">Currency Detection</a>
+            <a class="button" href="/docs#/default/image_captioning_image_captioning_post">Image Captioning</a>
+            <a class="button" href="/docs#/default/product_recognition_product_recognition_post">Product Recognition</a>
+            <a class="button" href="/docs#/default/calculate_distance_distance_estimate_post">Distance Estimate</a>
+        </div>
+        <p style="margin-top:2rem; color:#64748b;">Or use the <a href="/docs">API documentation</a>.</p>
+    </body>
+    </html>
+    '''
+    return HTMLResponse(content=html)
 
 @app.post("/document_recognition")
 async def document_recognition(file: UploadFile = File(...)):

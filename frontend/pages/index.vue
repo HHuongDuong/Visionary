@@ -1,62 +1,63 @@
 <template>
-    <div class="flex flex-col h-screen">
-        <div class="navbar bg-base-100 h-[10%]">
-            <div class="flex-none">
-                <button class="btn btn-square btn-ghost" onclick="settings.showModal()">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                        class="inline-block h-5 w-5 stroke-current">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
-                        </path>
+    <div class="flex flex-col min-h-screen bg-gradient-to-br from-blue-50 to-purple-100">
+        <header class="flex items-center justify-between px-6 py-4 shadow-md bg-white/80 backdrop-blur sticky top-0 z-10">
+            <div class="flex items-center gap-2">
+                <button @click="showSettingsDialog = true" aria-label="Open settings" class="rounded-full p-2 hover:bg-blue-100 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="h-6 w-6 text-blue-700">
+                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
                 </button>
+                <span class="font-bold text-2xl text-blue-700 tracking-tight">Vision Mate</span>
             </div>
-            <div class="flex-1">
-                <a class="btn btn-ghost text-xl">Vision Mate</a>
-            </div>
-            <div class="flex-none">
-                <button class="btn btn-square btn-ghost" onclick="about.showModal()">
-                    <i class="fa-regular fa-circle-question text-xl"></i>
-                </button>
-            </div>
-        </div>
+            <button @click="showAboutDialog = true" aria-label="About" class="rounded-full p-2 hover:bg-purple-100 transition">
+                <i class="fa-regular fa-circle-question text-2xl text-purple-700"></i>
+            </button>
+        </header>
 
-        <div class="flex-grow h-[70%]">
-            <Camera :resolution="cameraResolution" ref="camera" autoplay class="w-full h-full"></Camera>
-        </div>
+        <main class="flex flex-col flex-grow items-center justify-center gap-6 py-6">
+            <div class="w-full max-w-md aspect-[3/5] rounded-2xl overflow-hidden shadow-lg border-2 border-blue-200 bg-white/70 flex items-center justify-center">
+                <Camera :resolution="cameraResolution" ref="camera" autoplay class="w-full h-full object-cover" />
+            </div>
 
-        <div class="h-[20%] md:m-auto">
-            <Buttonbar :defaultSelected="selectedButtonName" @update:selectedButton="updateSelectedButton" class="w-full h-full" />
-        </div>
+            <div class="w-full max-w-xl">
+                <Buttonbar :defaultSelected="selectedButtonName" @update:selectedButton="updateSelectedButton" class="w-full" />
+            </div>
+        </main>
 
         <audio v-if="audioUrl" :src="audioUrl" autoplay style="display: none;"></audio>
 
-        <dialog id="settings" class="modal">
-            <div class="modal-box">
-                <h3 class="text-lg font-bold">Taluli talula!</h3>
-                <p class="py-4">Taluli talula!</p>
+        <!-- Settings Dialog -->
+        <dialog ref="settingsDialog" class="modal" :open="showSettingsDialog">
+            <div class="modal-box bg-white rounded-xl shadow-xl">
+                <h3 class="text-lg font-bold text-blue-700">Settings</h3>
+                <p class="py-4 text-gray-600">Settings content goes here.</p>
             </div>
             <form method="dialog" class="modal-backdrop">
-                <button>close</button>
+                <button @click.prevent="showSettingsDialog = false" class="btn btn-sm btn-outline mt-2">Close</button>
             </form>
         </dialog>
 
-        <dialog id="about" class="modal">
-            <div class="modal-box">
-                <h3 class="text-lg font-bold">Taluli talula!</h3>
-                <p class="py-4">Taluli talula!</p>
+        <!-- About Dialog -->
+        <dialog ref="aboutDialog" class="modal" :open="showAboutDialog">
+            <div class="modal-box bg-white rounded-xl shadow-xl">
+                <h3 class="text-lg font-bold text-purple-700">About</h3>
+                <p class="py-4 text-gray-600">Vision Mate helps you recognize text, currency, objects, products, distances, and faces using your camera. Powered by AI.</p>
             </div>
             <form method="dialog" class="modal-backdrop">
-                <button>close</button>
+                <button @click.prevent="showAboutDialog = false" class="btn btn-sm btn-outline mt-2">Close</button>
             </form>
         </dialog>
+
+        <div v-if="errorMessage" class="alert alert-error mt-4 mx-auto max-w-md">{{ errorMessage }}</div>
     </div>
 </template>
 
 <script setup lang="ts">
 import Camera from 'simple-vue-camera';
+import Buttonbar from '~/components/Buttonbar.vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 
 const camera = ref<InstanceType<typeof Camera>>();
-const snapshotUrl = ref<string | null>(null);
 const selectedButtonName = ref<string>('Text');
 const cameraResolution = ref<{ width: number, height: number }>({ width: 375, height: 600 });
 
@@ -67,6 +68,10 @@ interface JsonResponse {
 
 const jsonResponse = ref<JsonResponse | null>(null);
 const audioUrl = ref<string | null>(null);
+const errorMessage = ref<string | null>(null);
+
+const showSettingsDialog = ref(false);
+const showAboutDialog = ref(false);
 
 const endpoints: Record<string, string> = {
     'Text': '/document_recognition',
@@ -80,7 +85,6 @@ const endpoints: Record<string, string> = {
 const snapshot = async () => {
     const blob = await camera.value?.snapshot();
     if (blob) {
-        snapshotUrl.value = URL.createObjectURL(blob);
         sendImageToEndpoint(blob);
     }
 };
@@ -93,6 +97,7 @@ const sendImageToEndpoint = async (blob: Blob) => {
     formData.append('file', blob);
 
     try {
+        errorMessage.value = null;
         const response = await fetch(endpoint, {
             method: 'POST',
             body: formData,
@@ -106,16 +111,15 @@ const sendImageToEndpoint = async (blob: Blob) => {
         }
 
         jsonResponse.value = await response.json();
-        console.log('JSON Response:', jsonResponse.value);
-
         const audioPath = jsonResponse.value?.audio_path;
         if (audioPath) {
             const encodedAudioPath = encodeURIComponent(audioPath);
-            const audioFileUrl = `http://112.137.129.161:8000/download_audio?audio_path=${encodedAudioPath}`;
-            console.log('Audio File URL:', audioFileUrl);
+            // Use relative path for proxy
+            const audioFileUrl = `/download_audio?audio_path=${encodedAudioPath}`;
             audioUrl.value = audioFileUrl;
         }
-    } catch (error) {
+    } catch (error: any) {
+        errorMessage.value = 'Failed to process image. Please try again.';
         console.error('Error sending image to endpoint:', error);
     }
 };
@@ -154,4 +158,11 @@ onUnmounted(() => {
 });
 </script>
 
-<style scoped></style>
+<style scoped>
+body {
+  background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%);
+}
+.modal-box {
+  max-width: 90vw;
+}
+</style>
